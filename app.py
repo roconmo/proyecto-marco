@@ -5,17 +5,25 @@ Aplicación principal — interfaz Streamlit para extracción de datos desde PDF
 Flujo:
 1. Usuario sube el PDF
 2. Usuario selecciona el proveedor manualmente
-3. Usuario sube el Excel destino
+3. Usuario sube el Excel destino (con "Hoja1" ya existente)
 4. Se procesa el PDF con el parser del proveedor elegido
-5. El output se escribe en el Excel proporcionado
+5. El output se escribe en las columnas correctas de "Hoja1"
 6. El usuario descarga el Excel actualizado
 """
 
 import streamlit as st
-import io
+import streamlit.components.v1 as components
 
-from utils import get_parser, get_proveedores_disponibles, nombre_clase_parser, formatear_lista_errores, extract_text
-from excel_exporter import exportar_a_excel, crear_excel_vacio
+from utils import (
+    get_parser,
+    get_proveedores_disponibles,
+    nombre_clase_parser,
+    formatear_lista_errores,
+    extract_text,
+    confirmar_proveedor_en_pdf,
+)
+from excel_exporter import exportar_a_excel, inspeccionar_cabecera, HOJA_DESTINO
+from verificar import verificar, discrepancias_a_dataframe
 
 
 # ---------------------------------------------------------------------------
@@ -30,13 +38,33 @@ st.set_page_config(
 
 
 # ---------------------------------------------------------------------------
+# Inicializar estado de sesión (debe hacerse antes de cualquier uso)
+# ---------------------------------------------------------------------------
+
+if "resultado" not in st.session_state:
+    st.session_state.resultado = None
+if "descargado" not in st.session_state:
+    st.session_state.descargado = False
+if "form_key" not in st.session_state:
+    st.session_state.form_key = 0
+if "scroll_top" not in st.session_state:
+    st.session_state.scroll_top = False
+
+
+# ---------------------------------------------------------------------------
 # Título y descripción
 # ---------------------------------------------------------------------------
+
+# Scroll al inicio si se acaba de reiniciar el formulario
+if st.session_state.scroll_top:
+    st.session_state.scroll_top = False
+    components.html("<script>window.parent.scrollTo({top: 0, behavior: 'instant'});</script>", height=0)
 
 st.title("Extractor de PDFs Comerciales")
 st.markdown(
     "Sube un PDF de proveedor, selecciona el proveedor y el Excel destino. "
-    "La aplicación extraerá los datos y los escribirá en tu Excel."
+    f"La aplicación escribirá los datos extraídos en la hoja **{HOJA_DESTINO}** "
+    "de tu plantilla, respetando todas las demás columnas existentes."
 )
 st.divider()
 
@@ -51,6 +79,7 @@ pdf_file = st.file_uploader(
     label="Sube el PDF del proveedor",
     type=["pdf"],
     help="Archivo PDF con el albarán o factura del proveedor.",
+    key=f"pdf_uploader_{st.session_state.form_key}",
 )
 
 
@@ -64,7 +93,18 @@ proveedor_seleccionado = st.selectbox(
     label="Proveedor",
     options=get_proveedores_disponibles(),
     help="Selecciona el proveedor al que corresponde el PDF subido.",
+    key=f"proveedor_{st.session_state.form_key}",
 )
+
+# Validación inmediata: si hay PDF y proveedor seleccionado, confirmar coincidencia
+if proveedor_seleccionado and pdf_file is not None:
+    _pdf_bytes_check = pdf_file.read()
+    pdf_file.seek(0)
+    _ok, _msg = confirmar_proveedor_en_pdf(proveedor_seleccionado, _pdf_bytes_check)
+    if _ok:
+        st.success(_msg)
+    else:
+        st.error(_msg)
 
 
 # ---------------------------------------------------------------------------
@@ -74,27 +114,42 @@ proveedor_seleccionado = st.selectbox(
 st.subheader("3. Selecciona el Excel destino")
 
 excel_file = st.file_uploader(
-    label="Sube el archivo Excel donde se escribirán los datos (.xlsx)",
+    label=f"Sube el archivo Excel con la hoja '{HOJA_DESTINO}' ya preparada (.xlsx)",
     type=["xlsx"],
     help=(
-        "El resultado se añadirá al final de los datos existentes, "
-        "sin sobrescribir ni duplicar cabeceras."
+        f"El resultado se escribirá en la hoja '{HOJA_DESTINO}' de tu plantilla, "
+        "solo en las columnas objetivo, sin alterar el resto."
     ),
+    key=f"excel_uploader_{st.session_state.form_key}",
 )
 
-# Opción alternativa: usar un Excel nuevo vacío si el usuario no tiene uno
-usar_excel_nuevo = st.checkbox(
-    "No tengo un Excel destino — crear uno nuevo",
-    value=False,
-    help="Si marcas esta opción se generará un Excel nuevo limpio como destino.",
-)
+# Cuando el usuario sube un Excel, mostrar las columnas que tiene "Hoja1"
+# para que pueda verificar antes de procesar
+if excel_file is not None:
+    try:
+        excel_preview_bytes = excel_file.read()
+        excel_file.seek(0)  # Rebobinar para que el procesamiento posterior funcione
+        cols_en_hoja = inspeccionar_cabecera(excel_preview_bytes, HOJA_DESTINO)
+        if cols_en_hoja:
+            with st.expander(
+                f"Columnas detectadas en '{HOJA_DESTINO}' ({len(cols_en_hoja)} columnas)",
+                expanded=False,
+            ):
+                st.write(cols_en_hoja)
+        else:
+            st.warning(
+                f"La hoja '{HOJA_DESTINO}' existe pero no tiene cabecera en la fila 1, "
+                "o la hoja no existe aún en ese Excel."
+            )
+    except Exception:
+        pass  # Si falla la previsualización no bloqueamos al usuario
 
 
 # ---------------------------------------------------------------------------
 # Zona de debug (expandible, opcional)
 # ---------------------------------------------------------------------------
 
-with st.expander("Información de debug", expanded=False):
+with st.expander("Información de debug — configuración actual", expanded=False):
     col1, col2 = st.columns(2)
     with col1:
         st.markdown("**PDF subido:**")
@@ -108,33 +163,110 @@ with st.expander("Información de debug", expanded=False):
         st.code(nombre_clase_parser(proveedor_seleccionado))
 
         st.markdown("**Excel destino:**")
-        if excel_file:
-            st.code(excel_file.name)
-        elif usar_excel_nuevo:
-            st.code("Excel nuevo (generado automáticamente)")
-        else:
-            st.code("— ninguno —")
+        st.code(excel_file.name if excel_file else "— ninguno —")
+
+        st.markdown("**Hoja destino:**")
+        st.code(HOJA_DESTINO)
 
 
 # ---------------------------------------------------------------------------
 # Sección 4 — Botón de procesamiento
 # ---------------------------------------------------------------------------
 
+
 st.divider()
 
+# --- Si ya se descargó, mostrar mensaje final y no el botón ---
+if st.session_state.descargado:
+    st.success("Proceso finalizado. Puedes cerrar esta ventana o subir un nuevo PDF.")
+    if st.button("Procesar otro PDF", use_container_width=True):
+        st.session_state.resultado = None
+        st.session_state.descargado = False
+        st.session_state.form_key += 1
+        st.session_state.scroll_top = True
+        st.rerun()
+    st.stop()
+
+# --- Si ya se procesó pero aún no se descargó, mostrar resultados y descarga ---
+if st.session_state.resultado is not None:
+    res = st.session_state.resultado
+
+    if res.get("columnas_faltantes"):
+        st.warning(
+            f"Las siguientes columnas objetivo **no se encontraron** en la "
+            f"hoja '{HOJA_DESTINO}' y no se han escrito:\n"
+            + formatear_lista_errores(res["columnas_faltantes"])
+        )
+
+    filas_escritas = res["filas_escritas"]
+    if filas_escritas > 0:
+        st.success(
+            f"Procesamiento completado — "
+            f"**{filas_escritas}** fila(s) escritas en '{HOJA_DESTINO}' | "
+            f"Proveedor: **{res['proveedor']}**"
+        )
+    else:
+        st.info("El parser no devolvió datos para este PDF. El Excel no ha sido modificado.")
+
+    if res.get("advertencias_parser"):
+        st.warning("Advertencias del parser:\n" + formatear_lista_errores(res["advertencias_parser"]))
+
+    if res.get("df_preview") is not None:
+        st.subheader("Vista previa de los datos extraídos")
+        st.dataframe(res["df_preview"], use_container_width=True)
+
+    if res.get("discrepancias") is not None:
+        st.subheader("Verificación PDF vs Excel generado")
+        for msg in res["resumen_verificacion"]:
+            if "✔" in msg:
+                st.success(msg)
+            else:
+                st.warning(msg)
+        if res["discrepancias"]:
+            st.dataframe(discrepancias_a_dataframe(res["discrepancias"]), use_container_width=True)
+
+    st.divider()
+    st.subheader("Descargar Excel actualizado")
+    descargado = st.download_button(
+        label="Descargar Excel con los datos escritos",
+        data=res["excel_bytes_resultado"],
+        file_name=res["nombre_excel"],
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        type="primary",
+        use_container_width=True,
+    )
+    if descargado:
+        st.session_state.descargado = True
+        st.rerun()
+
+    st.stop()
+
+# --- Estado inicial: mostrar botón Procesar ---
 procesar = st.button("Procesar", type="primary", use_container_width=True)
 
 if procesar:
+
     # --- Validaciones previas al procesamiento ---
     errores_validacion = []
 
     if pdf_file is None:
         errores_validacion.append("Debes subir un archivo PDF.")
 
-    if not usar_excel_nuevo and excel_file is None:
+    if not proveedor_seleccionado:
+        errores_validacion.append("Debes seleccionar un proveedor.")
+
+    if excel_file is None:
         errores_validacion.append(
-            "Debes subir un archivo Excel destino o marcar la opción de crear uno nuevo."
+            f"Debes subir el archivo Excel destino con la hoja '{HOJA_DESTINO}' preparada."
         )
+
+    # Confirmar que el PDF coincide con el proveedor antes de procesar
+    if pdf_file is not None and proveedor_seleccionado:
+        _pdf_bytes_val = pdf_file.read()
+        pdf_file.seek(0)
+        _ok_val, _msg_val = confirmar_proveedor_en_pdf(proveedor_seleccionado, _pdf_bytes_val)
+        if not _ok_val:
+            errores_validacion.append(_msg_val)
 
     if errores_validacion:
         for msg in errores_validacion:
@@ -145,91 +277,67 @@ if procesar:
     with st.spinner(f"Procesando PDF con el parser de {proveedor_seleccionado}..."):
 
         try:
-            # 1. Obtener los bytes del PDF
+            # 1. Leer bytes del PDF
             pdf_bytes = pdf_file.read()
 
-            # 2. Extraer texto plano para debug (antes de parsear)
+            # 2. Extraer texto plano para debug
             texto_extraido = extract_text(pdf_bytes)
             with st.expander("DEBUG TEXT — texto extraído del PDF", expanded=False):
                 st.text_area(
-                    label="Primeros 2000 caracteres del texto extraído por pdfplumber",
-                    value=texto_extraido[:2000] if texto_extraido else "(sin texto extraído)",
-                    height=300,
+                    label=f"Texto completo extraído por pdfplumber ({len(texto_extraido)} caracteres)",
+                    value=texto_extraido if texto_extraido else "(sin texto extraído)",
+                    height=500,
                     disabled=True,
                 )
 
-            # 3. Instanciar el parser correcto según el proveedor
+            # 3. Parser y extracción
             parser = get_parser(proveedor_seleccionado)
-
-            # 4. Ejecutar el parsing
             filas = parser.parse(pdf_bytes)
-
-            # 5. Obtener advertencias y errores del parser
-            advertencias = parser.get_advertencias()
+            advertencias_parser = parser.get_advertencias()
             errores_parser = parser.get_errores()
 
-            # 6. Mostrar advertencias del parser (no fatales)
-            if advertencias:
-                st.warning(
-                    "Advertencias del parser:\n" + formatear_lista_errores(advertencias)
-                )
-
-            # 7. Si hay errores fatales del parser, detener
             if errores_parser:
-                st.error(
-                    "Errores durante el parsing:\n" + formatear_lista_errores(errores_parser)
-                )
+                st.error("Errores durante el parsing:\n" + formatear_lista_errores(errores_parser))
                 st.stop()
 
-            # 8. Preparar el Excel destino
-            if usar_excel_nuevo:
-                excel_bytes_origen = crear_excel_vacio()
-                nombre_excel_salida = "resultado_nuevo.xlsx"
-            else:
-                excel_bytes_origen = excel_file.read()
-                nombre_excel_salida = excel_file.name
+            # 4. Exportar a Excel
+            excel_bytes_origen = excel_file.read()
+            nombre_excel_salida = excel_file.name
 
-            # 9. Escribir el output en el Excel
             if filas:
-                excel_bytes_resultado = exportar_a_excel(
+                excel_bytes_resultado, columnas_faltantes = exportar_a_excel(
                     filas=filas,
                     excel_bytes=excel_bytes_origen,
                 )
                 filas_escritas = len(filas)
             else:
-                # El parser no devolvió datos
                 excel_bytes_resultado = excel_bytes_origen
+                columnas_faltantes = []
                 filas_escritas = 0
 
-            # --- Resultado del procesamiento ---
-            st.success(
-                f"Procesamiento completado. "
-                f"Filas extraídas: **{filas_escritas}** | "
-                f"Proveedor: **{proveedor_seleccionado}**"
+            # 5. Verificación
+            discrepancias, resumen_verificacion = (
+                verificar(filas, excel_bytes_resultado, filas_escritas)
+                if filas and filas_escritas > 0
+                else (None, None)
             )
 
-            # 9. Mostrar preview de los datos extraídos
-            if filas:
-                st.subheader("Vista previa de los datos extraídos")
-                df_preview = parser.to_dataframe(filas)
-                st.dataframe(df_preview, use_container_width=True)
-            else:
-                st.info("El parser no devolvió datos para este PDF.")
-
-            # 10. Botón de descarga del Excel actualizado
-            st.divider()
-            st.subheader("Descargar Excel actualizado")
-            st.download_button(
-                label="Descargar Excel con los datos extraídos",
-                data=excel_bytes_resultado,
-                file_name=nombre_excel_salida,
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                type="primary",
-                use_container_width=True,
-            )
+            # 6. Guardar todo en session_state
+            st.session_state.resultado = {
+                "proveedor": proveedor_seleccionado,
+                "filas_escritas": filas_escritas,
+                "excel_bytes_resultado": excel_bytes_resultado,
+                "nombre_excel": nombre_excel_salida,
+                "columnas_faltantes": columnas_faltantes,
+                "advertencias_parser": advertencias_parser,
+                "df_preview": parser.to_dataframe(filas) if filas else None,
+                "discrepancias": discrepancias,
+                "resumen_verificacion": resumen_verificacion,
+            }
+            st.rerun()
 
         except ValueError as e:
             st.error(f"Error de configuración: {e}")
         except Exception as e:
             st.error(f"Error inesperado durante el procesamiento: {e}")
-            raise  # En desarrollo es útil ver el traceback completo en la consola
+            raise

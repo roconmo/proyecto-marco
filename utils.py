@@ -25,6 +25,15 @@ PARSERS: Dict[str, Type[BaseParser]] = {
     "J.ABAD": JabadParser,
 }
 
+# Texto que debe aparecer en la cabecera del PDF para confirmar el proveedor.
+# Clave: nombre del combo. Valor: fragmento identificativo en el PDF.
+FIRMA_PDF: Dict[str, str] = {
+    "MAVY": "MAVY Manuel Durán S.L.",
+    "Metálicas Julio García": "METALICAS JULIO GARCIA, S.L.",
+    "ONELEC": "ONELEC SUMINISTROS ELEC. S.L.",
+    "J.ABAD": "J.ABAD COMERCIAL DEL COBRE SAU",
+}
+
 
 def get_parser(proveedor: str) -> BaseParser:
     """
@@ -49,9 +58,49 @@ def get_parser(proveedor: str) -> BaseParser:
 
 def get_proveedores_disponibles() -> list:
     """
-    Devuelve la lista de nombres de proveedores disponibles para el selectbox.
+    Devuelve la lista de nombres de proveedores para el selectbox,
+    con un primer elemento en blanco.
     """
-    return list(PARSERS.keys())
+    return [""] + list(PARSERS.keys())
+
+
+def confirmar_proveedor_en_pdf(proveedor: str, pdf_bytes: bytes) -> tuple[bool, str]:
+    """
+    Comprueba que el texto identificativo del proveedor aparece en las
+    primeras páginas del PDF.
+
+    Returns:
+        (ok, mensaje)
+        · ok      : True si el PDF corresponde al proveedor seleccionado
+        · mensaje : descripción del resultado para mostrar al usuario
+    """
+    if proveedor not in FIRMA_PDF:
+        return False, f"Proveedor '{proveedor}' sin firma PDF registrada."
+
+    firma = FIRMA_PDF[proveedor]
+
+    # Buscar en las primeras 3 páginas (cabecera suele estar en las primeras)
+    texto = ""
+    with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
+        for page in pdf.pages[:3]:
+            texto += (page.extract_text() or "") + " "
+
+    if firma.lower() in texto.lower():
+        return True, f"PDF confirmado como proveedor **{proveedor}** ({firma})."
+    else:
+        # Detectar qué proveedor sí coincide, para dar un mensaje útil
+        for nombre, otra_firma in FIRMA_PDF.items():
+            if otra_firma.lower() in texto.lower():
+                return (
+                    False,
+                    f"El PDF parece ser de **{nombre}** ({otra_firma}), "
+                    f"no de **{proveedor}**. Corrige la selección antes de continuar.",
+                )
+        return (
+            False,
+            f"No se ha encontrado la firma «{firma}» en el PDF. "
+            "Comprueba que el PDF y el proveedor seleccionado coinciden.",
+        )
 
 
 def nombre_clase_parser(proveedor: str) -> str:
