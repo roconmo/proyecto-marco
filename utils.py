@@ -5,7 +5,7 @@ Funciones auxiliares compartidas por el resto del proyecto.
 
 import io
 import pdfplumber
-from typing import Dict, Type
+from typing import Dict, Optional, Type
 from parser_base import BaseParser
 from parser_mavy import MavyParser
 from parser_metalicas_julio_garcia import MetalicasJulioGarciaParser
@@ -28,7 +28,7 @@ PARSERS: Dict[str, Type[BaseParser]] = {
 # Texto que debe aparecer en la cabecera del PDF para confirmar el proveedor.
 # Clave: nombre del combo. Valor: fragmento identificativo en el PDF.
 FIRMA_PDF: Dict[str, str] = {
-    "MAVY": "MAVY Manuel Durán S.L.",
+    "MAVY": "BaseAtCard",  # columna única del sistema de MAVY (el logo es imagen, no texto)
     "Metálicas Julio García": "METALICAS JULIO GARCIA, S.L.",
     "ONELEC": "ONELEC SUMINISTROS ELEC. S.L.",
     "J.ABAD": "J.ABAD COMERCIAL DEL COBRE SAU",
@@ -64,6 +64,35 @@ def get_proveedores_disponibles() -> list:
     return [""] + list(PARSERS.keys())
 
 
+def _normalizar(texto: str) -> str:
+    """Minúsculas, sin acentos y sin espacios dobles para comparaciones robustas."""
+    import unicodedata
+    sin_tilde = "".join(
+        c for c in unicodedata.normalize("NFD", texto)
+        if unicodedata.category(c) != "Mn"
+    )
+    return " ".join(sin_tilde.lower().split())
+
+
+def detectar_proveedor(pdf_bytes: bytes) -> Optional[str]:
+    """
+    Intenta detectar automáticamente el proveedor leyendo las primeras páginas del PDF.
+
+    Returns:
+        Nombre del proveedor si se reconoce, None si no se encuentra ninguna firma conocida.
+    """
+    texto = ""
+    with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
+        for page in pdf.pages[:3]:
+            texto += (page.extract_text() or "") + " "
+
+    texto_norm = _normalizar(texto)
+    for nombre, firma in FIRMA_PDF.items():
+        if _normalizar(firma) in texto_norm:
+            return nombre
+    return None
+
+
 def confirmar_proveedor_en_pdf(proveedor: str, pdf_bytes: bytes) -> tuple[bool, str]:
     """
     Comprueba que el texto identificativo del proveedor aparece en las
@@ -85,12 +114,12 @@ def confirmar_proveedor_en_pdf(proveedor: str, pdf_bytes: bytes) -> tuple[bool, 
         for page in pdf.pages[:3]:
             texto += (page.extract_text() or "") + " "
 
-    if firma.lower() in texto.lower():
+    texto_norm = _normalizar(texto)
+    if _normalizar(firma) in texto_norm:
         return True, f"PDF confirmado como proveedor **{proveedor}** ({firma})."
     else:
-        # Detectar qué proveedor sí coincide, para dar un mensaje útil
         for nombre, otra_firma in FIRMA_PDF.items():
-            if otra_firma.lower() in texto.lower():
+            if _normalizar(otra_firma) in texto_norm:
                 return (
                     False,
                     f"El PDF parece ser de **{nombre}** ({otra_firma}), "

@@ -21,6 +21,7 @@ from utils import (
     formatear_lista_errores,
     extract_text,
     confirmar_proveedor_en_pdf,
+    detectar_proveedor,
 )
 from excel_exporter import exportar_a_excel, inspeccionar_cabecera, HOJA_DESTINO
 from verificar import verificar, discrepancias_a_dataframe
@@ -84,27 +85,24 @@ pdf_file = st.file_uploader(
 
 
 # ---------------------------------------------------------------------------
-# Sección 2 — Selección del proveedor
+# Sección 2 — Detección automática del proveedor
 # ---------------------------------------------------------------------------
 
-st.subheader("2. Selecciona el proveedor")
+proveedor_seleccionado = ""
 
-proveedor_seleccionado = st.selectbox(
-    label="Proveedor",
-    options=get_proveedores_disponibles(),
-    help="Selecciona el proveedor al que corresponde el PDF subido.",
-    key=f"proveedor_{st.session_state.form_key}",
-)
-
-# Validación inmediata: si hay PDF y proveedor seleccionado, confirmar coincidencia
-if proveedor_seleccionado and pdf_file is not None:
-    _pdf_bytes_check = pdf_file.read()
+if pdf_file is not None:
+    st.subheader("2. Proveedor detectado")
+    _pdf_bytes_det = pdf_file.read()
     pdf_file.seek(0)
-    _ok, _msg = confirmar_proveedor_en_pdf(proveedor_seleccionado, _pdf_bytes_check)
-    if _ok:
-        st.success(_msg)
+    proveedor_seleccionado = detectar_proveedor(_pdf_bytes_det) or ""
+
+    if proveedor_seleccionado:
+        st.success(f"Proveedor detectado: **{proveedor_seleccionado}**")
     else:
-        st.error(_msg)
+        st.error(
+            "No se ha podido identificar el proveedor de este PDF. "
+            "Por favor, contacta con IT para añadir soporte para este proveedor."
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -123,12 +121,10 @@ excel_file = st.file_uploader(
     key=f"excel_uploader_{st.session_state.form_key}",
 )
 
-# Cuando el usuario sube un Excel, mostrar las columnas que tiene "Hoja1"
-# para que pueda verificar antes de procesar
 if excel_file is not None:
     try:
         excel_preview_bytes = excel_file.read()
-        excel_file.seek(0)  # Rebobinar para que el procesamiento posterior funcione
+        excel_file.seek(0)
         cols_en_hoja = inspeccionar_cabecera(excel_preview_bytes, HOJA_DESTINO)
         if cols_en_hoja:
             with st.expander(
@@ -138,11 +134,10 @@ if excel_file is not None:
                 st.write(cols_en_hoja)
         else:
             st.warning(
-                f"La hoja '{HOJA_DESTINO}' existe pero no tiene cabecera en la fila 1, "
-                "o la hoja no existe aún en ese Excel."
+                f"La hoja '{HOJA_DESTINO}' existe pero no tiene cabecera en la fila 1."
             )
     except Exception:
-        pass  # Si falla la previsualización no bloqueamos al usuario
+        pass
 
 
 # ---------------------------------------------------------------------------
@@ -154,17 +149,13 @@ with st.expander("Información de debug — configuración actual", expanded=Fal
     with col1:
         st.markdown("**PDF subido:**")
         st.code(pdf_file.name if pdf_file else "— ninguno —")
-
-        st.markdown("**Proveedor seleccionado:**")
-        st.code(proveedor_seleccionado)
-
+        st.markdown("**Proveedor detectado:**")
+        st.code(proveedor_seleccionado or "— no detectado —")
     with col2:
         st.markdown("**Parser que se usará:**")
-        st.code(nombre_clase_parser(proveedor_seleccionado))
-
+        st.code(nombre_clase_parser(proveedor_seleccionado) if proveedor_seleccionado else "— ninguno —")
         st.markdown("**Excel destino:**")
         st.code(excel_file.name if excel_file else "— ninguno —")
-
         st.markdown("**Hoja destino:**")
         st.code(HOJA_DESTINO)
 
@@ -206,10 +197,22 @@ if st.session_state.resultado is not None:
             f"Proveedor: **{res['proveedor']}**"
         )
     else:
-        st.info("El parser no devolvió datos para este PDF. El Excel no ha sido modificado.")
+        st.info("El parser no devolvió datos. El Excel no ha sido modificado.")
 
-    if res.get("advertencias_parser"):
-        st.warning("Advertencias del parser:\n" + formatear_lista_errores(res["advertencias_parser"]))
+    # Resumen por PDF
+    if len(res.get("resumen_pdfs", [])) > 1:
+        with st.expander(f"Detalle por PDF ({len(res['resumen_pdfs'])} archivos)", expanded=True):
+            for item in res["resumen_pdfs"]:
+                estado = "✔" if not item["errores"] else "✖"
+                st.markdown(f"**{estado} {item['nombre']}** — {item['filas']} fila(s)")
+                if item["advertencias"]:
+                    st.warning(formatear_lista_errores(item["advertencias"]))
+                if item["errores"]:
+                    st.error(formatear_lista_errores(item["errores"]))
+    elif res.get("resumen_pdfs"):
+        item = res["resumen_pdfs"][0]
+        if item.get("advertencias"):
+            st.warning("Advertencias del parser:\n" + formatear_lista_errores(item["advertencias"]))
 
     if res.get("df_preview") is not None:
         st.subheader("Vista previa de los datos extraídos")
@@ -253,34 +256,26 @@ if procesar:
         errores_validacion.append("Debes subir un archivo PDF.")
 
     if not proveedor_seleccionado:
-        errores_validacion.append("Debes seleccionar un proveedor.")
+        errores_validacion.append(
+            "No se ha podido identificar el proveedor del PDF. "
+            "Contacta con IT para añadir soporte para este proveedor."
+        )
 
     if excel_file is None:
         errores_validacion.append(
             f"Debes subir el archivo Excel destino con la hoja '{HOJA_DESTINO}' preparada."
         )
 
-    # Confirmar que el PDF coincide con el proveedor antes de procesar
-    if pdf_file is not None and proveedor_seleccionado:
-        _pdf_bytes_val = pdf_file.read()
-        pdf_file.seek(0)
-        _ok_val, _msg_val = confirmar_proveedor_en_pdf(proveedor_seleccionado, _pdf_bytes_val)
-        if not _ok_val:
-            errores_validacion.append(_msg_val)
-
     if errores_validacion:
         for msg in errores_validacion:
             st.error(msg)
         st.stop()
 
-    # --- Procesamiento ---
+    # --- Procesamiento de todos los PDFs ---
     with st.spinner(f"Procesando PDF con el parser de {proveedor_seleccionado}..."):
-
         try:
-            # 1. Leer bytes del PDF
             pdf_bytes = pdf_file.read()
 
-            # 2. Extraer texto plano para debug
             texto_extraido = extract_text(pdf_bytes)
             with st.expander("DEBUG TEXT — texto extraído del PDF", expanded=False):
                 st.text_area(
@@ -290,7 +285,6 @@ if procesar:
                     disabled=True,
                 )
 
-            # 3. Parser y extracción
             parser = get_parser(proveedor_seleccionado)
             filas = parser.parse(pdf_bytes)
             advertencias_parser = parser.get_advertencias()
@@ -300,7 +294,6 @@ if procesar:
                 st.error("Errores durante el parsing:\n" + formatear_lista_errores(errores_parser))
                 st.stop()
 
-            # 4. Exportar a Excel
             excel_bytes_origen = excel_file.read()
             nombre_excel_salida = excel_file.name
 
@@ -315,21 +308,20 @@ if procesar:
                 columnas_faltantes = []
                 filas_escritas = 0
 
-            # 5. Verificación
             discrepancias, resumen_verificacion = (
                 verificar(filas, excel_bytes_resultado, filas_escritas)
                 if filas and filas_escritas > 0
                 else (None, None)
             )
 
-            # 6. Guardar todo en session_state
             st.session_state.resultado = {
                 "proveedor": proveedor_seleccionado,
                 "filas_escritas": filas_escritas,
                 "excel_bytes_resultado": excel_bytes_resultado,
                 "nombre_excel": nombre_excel_salida,
                 "columnas_faltantes": columnas_faltantes,
-                "advertencias_parser": advertencias_parser,
+                "resumen_pdfs": [{"nombre": pdf_file.name, "filas": filas_escritas,
+                                   "advertencias": advertencias_parser, "errores": []}],
                 "df_preview": parser.to_dataframe(filas) if filas else None,
                 "discrepancias": discrepancias,
                 "resumen_verificacion": resumen_verificacion,
