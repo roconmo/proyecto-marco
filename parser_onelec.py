@@ -47,23 +47,114 @@ def _a_float(valor: str) -> Union[float, str]:
 
 def extract_medidas(descripcion: str) -> str:
     """
-    Extrae una medida/formato comercial simple desde la descripción.
-    No elimina el texto original de la descripción.
+    Extrae la medida más relevante desde la descripción del producto ONELEC.
+
+    Orden de prioridad (de mayor a menor):
+      1. Lúmenes/lumens              → "490 LUM"
+      2. Amperios (A)                → "16 A"
+      3. Rango de Lux                → "5-300LUX"
+      4. Metros lineales             → "12 MTS", "305 MTS", "2,10 MTS"
+         (excluye notaciones tipo Ø7m que son diámetros, no distancias)
+      5. Grados (°)                  → "360°"
+      6. Dimensiones NxNxN mm / NxN  → "322x120x45mm"
+      7. Pulgadas fraccionales       → "3/8\"", "1.1/4\"x32"
+      8. Diámetro nominal D.NN       → "D.63"
+      9. Talla métrica M-NN          → "M16"
+     10. Prensaestopas PG.NN         → "PG.9"
+     11. Tamaño NN-NN (tubería)      → "32-87"
+     12. Milímetros NN mm            → "6MM"
+     13. Voltios / kilovoltios       → "230V", "66kV"
+     14. IP                          → "IP55"
+     15. Fases NP+T                  → "2P+T"
     """
     if not descripcion:
         return ""
 
-    patrones = [
-        r"\b\d+[\.,]?\d*\s*[xX]\s*\d+[\.,]?\d*(?:\s*[xX]\s*\d+[\.,]?\d*)?\s*(?:mm|cm|m)?\b",
-        r"\bø\s*\d+[\.,]?\d*\s*(?:m|cm|mm)\b",
-        r"\b\d+[\.,]?\d*\s*(?:V|A|mA|kV|Lux|lm|h)\b",
-        r"\b\d+P\+?N?\+?T?\b",
-        r"\bIP\d{2}\b",
-    ]
-    for patron in patrones:
-        m = re.search(patron, descripcion, flags=re.IGNORECASE)
-        if m:
-            return re.sub(r"\s+", " ", m.group(0).strip())
+    # 1. Lúmenes / lumens
+    m = re.search(r"(\d+[\s.,]?\d*)\s*l[úu]m(?:enes)?", descripcion, re.IGNORECASE)
+    if m:
+        num = re.sub(r"\s+", "", m.group(1)).rstrip(".,")
+        return f"{num} LUM"
+
+    # 2. Amperios — preferido sobre voltios
+    m = re.search(r"\b(\d+[,.]?\d*)\s*A\b", descripcion)
+    if m:
+        return f"{m.group(1)} A"
+
+    # 3. Rango de Lux (ej. "5-300 Lux")
+    m = re.search(r"(\d+[-–]\d+)\s*Lux", descripcion, re.IGNORECASE)
+    if m:
+        return f"{m.group(1)}LUX"
+
+    # 4. Metros lineales — excluir si va precedido de Ø (es diámetro, no distancia)
+    m = re.search(r"(?<!ø)(?<!Ø)\b(\d+[,.]?\d*)\s*m\b(?!m)", descripcion, re.IGNORECASE)
+    if m:
+        num = m.group(1).rstrip(",.")
+        return f"{num} MTS"
+
+    # 5. Grados
+    m = re.search(r"(\d+)\s*°", descripcion)
+    if m:
+        return f"{m.group(1)}°"
+
+    # 6. Dimensiones NxNxN mm o NxN mm / sin unidad
+    m = re.search(
+        r"\b(\d+[,.]?\d*)\s*[xX]\s*(\d+[,.]?\d*)(?:\s*[xX]\s*(\d+[,.]?\d*))?\s*(mm|cm|m)?\b",
+        descripcion,
+    )
+    if m:
+        return re.sub(r"\s+", "", m.group(0)).strip()
+
+    # 7. Diámetro ø NN (mm/cm/m)
+    m = re.search(r"[øØ]\s*\d+[,.]?\d*\s*(?:m|cm|mm)\b", descripcion, re.IGNORECASE)
+    if m:
+        return re.sub(r"\s+", " ", m.group(0).strip())
+
+    # 8. Pulgadas fraccionales ANTES que pulgadas enteras: 3/8”, 1.1/4”x32, 1/2”
+    m = re.search(r'\d+[./]\d+(?:/\d+)?\s*[“″”](?:[xX]\d+)?', descripcion)
+    if m:
+        return m.group(0).strip()
+
+    # 9. Diámetro nominal D.NN (PVC)
+    m = re.search(r'[Dd]\.\d+', descripcion)
+    if m:
+        return m.group(0).upper()
+
+    # 10. Talla métrica M-NN o M.NN
+    m = re.search(r'\bM[-.]?(\d+)\b', descripcion)
+    if m:
+        return f"M{m.group(1)}"
+
+    # 11. Prensaestopas PG.NN
+    m = re.search(r'\bPG\.?(\d+)\b', descripcion, re.IGNORECASE)
+    if m:
+        return f"PG.{m.group(1)}"
+
+    # 12. Tamaño NN-NN (racores, tuberías)
+    m = re.search(r'\b(\d{2,})-(\d{2,})\b', descripcion)
+    if m:
+        return m.group(0)
+
+    # 13. Milímetros NN mm
+    m = re.search(r'\b(\d+)\s*mm\b', descripcion, re.IGNORECASE)
+    if m:
+        return f"{m.group(1)}MM"
+
+    # 14. Voltios / kilovoltios
+    m = re.search(r'\b(\d+[,.]?\d*)\s*(kV|V)\b', descripcion)
+    if m:
+        return re.sub(r"\s+", " ", m.group(0).strip())
+
+    # 15. IP
+    m = re.search(r'\bIP\d{2}\b', descripcion, re.IGNORECASE)
+    if m:
+        return m.group(0).upper()
+
+    # 16. Fases NP+T
+    m = re.search(r'\b\d+P\+?N?\+?T?\b', descripcion)
+    if m:
+        return m.group(0)
+
     return ""
 
 

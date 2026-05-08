@@ -40,21 +40,101 @@ def _a_float(valor: Any) -> Any:
 
 
 def extract_medidas(descripcion: str) -> str:
-    """Extrae una medida/formato comercial desde la descripción."""
+    """
+    Extrae la medida más relevante desde la descripción del producto J.ABAD.
+
+    Orden de prioridad (de mayor a menor):
+      1. Pulgadas fraccionales       → "1.1/4\"x32", "3/8\"", "1.1/2\"x40"
+      2. Diámetro nominal D.NN       → "D.63"
+      3. NN-NN (tamaño tubería/racor)→ "32-87", "32-45"
+      4. Número solo al final        → "32", "40"  (solo si es el último token)
+      5. Dimensiones NxN mm/cm/m     → "12,7x0,80mm"
+      6. Amperios A                  → "16 A"
+      7. Watios W                    → "100W"
+      8. Metros lineales             → "305 MTS"
+      9. Lúmenes lm                  → "490 LUM"
+     10. Milímetros NN mm            → "6MM"
+     11. Voltios / kilovoltios       → "230V"
+     12. IP                          → "IP44"
+    """
     if not descripcion:
         return ""
-    patrones = [
-        r"\b\d+[\.,]?\d*\s*[xX]\s*\d+[\.,]?\d*(?:\s*[xX]\s*\d+[\.,]?\d*)?\s*(?:mm|cm|m)?\b",
-        r"\bø\s*\d+[\.,]?\d*\s*(?:m|cm|mm)\b",
-        r"\b\d+[\.,]?\d*\s*(?:V|A|mA|kV|W|Lux|lm|h)\b",
-        r"\b\d+P\+?N?\+?T?\b",
-        r"\bIP\d{2}\b",
-        r'\b\d+(?:[.,]\d+)?["″]',
-    ]
-    for patron in patrones:
-        m = re.search(patron, descripcion, flags=re.IGNORECASE)
+
+    # 1. Pulgadas fraccionales ANTES que enteras: 1.1/4"x32  3/8"  1/2"
+    #    El xNN después de las " captura tamaños compuestos como 1.1/4"x32
+    m = re.search(r'\d+[./]\d+(?:/\d+)?\s*["″"](?:[xX]\d+)?', descripcion)
+    if m:
+        return m.group(0).strip()
+
+    # 2. Diámetro nominal D.NN (PVC)
+    m = re.search(r'[Dd]\.\d+', descripcion)
+    if m:
+        return m.group(0).upper()
+
+    # 3. NN-NN (tamaños de racores/tuberías, números de 2+ dígitos)
+    m = re.search(r'\b(\d{2,})-(\d{2,})\b', descripcion)
+    if m:
+        return m.group(0)
+
+    # 4. Número solo al final → solo para accesorios de tubería/fontanería
+    #    Se guarda como diámetro nominal sin unidad (ej. ENCOLAR 32 → "32")
+    #    Se excluyen pinturas/herramientas comprobando palabras clave de fitting
+    _FITTING_KW = re.compile(
+        r'\b(ENCOLAR|CODO|MANG(?:UITO)?|UNION|DERIV(?:\.|IVACION)?|TE90|TE\s*\d|RACOR|'
+        r'JUNTA|CURVA|EMPALME|PVC|PE\b|CPVC|REDUCTOR|NIPLE|ADAPTADOR)\b',
+        re.IGNORECASE,
+    )
+    if _FITTING_KW.search(descripcion):
+        m = re.search(r'\b(\d{2,})\s*$', descripcion.strip())
         if m:
-            return re.sub(r"\s+", " ", m.group(0).strip())
+            return m.group(1)
+
+    # 5. Dimensiones NxN con unidad
+    m = re.search(
+        r"\b\d+[,.]?\d*\s*[xX]\s*\d+[,.]?\d*(?:\s*[xX]\s*\d+[,.]?\d*)?\s*(?:mm|cm|m)?\b",
+        descripcion,
+        re.IGNORECASE,
+    )
+    if m:
+        return re.sub(r"\s+", "", m.group(0)).strip()
+
+    # 6. Amperios
+    m = re.search(r"\b(\d+[,.]?\d*)\s*A\b", descripcion)
+    if m:
+        return f"{m.group(1)} A"
+
+    # 7. Watios
+    m = re.search(r"\b(\d+[,.]?\d*)\s*W\b", descripcion)
+    if m:
+        return f"{m.group(1)}W"
+
+    # 8. Metros lineales
+    m = re.search(r"(?<!ø)(?<!Ø)\b(\d+[,.]?\d*)\s*m\b(?!m)", descripcion, re.IGNORECASE)
+    if m:
+        num = m.group(1).rstrip(",.")
+        return f"{num} MTS"
+
+    # 9. Lúmenes
+    m = re.search(r"(\d+[\s.,]?\d*)\s*l[úu]m(?:enes)?", descripcion, re.IGNORECASE)
+    if m:
+        num = re.sub(r"\s+", "", m.group(1)).rstrip(".,")
+        return f"{num} LUM"
+
+    # 10. Milímetros NN mm
+    m = re.search(r'\b(\d+)\s*mm\b', descripcion, re.IGNORECASE)
+    if m:
+        return f"{m.group(1)}MM"
+
+    # 11. Voltios / kilovoltios
+    m = re.search(r'\b(\d+[,.]?\d*)\s*(kV|V)\b', descripcion)
+    if m:
+        return re.sub(r"\s+", " ", m.group(0).strip())
+
+    # 12. IP
+    m = re.search(r'\bIP\d{2}\b', descripcion, re.IGNORECASE)
+    if m:
+        return m.group(0).upper()
+
     return ""
 
 
