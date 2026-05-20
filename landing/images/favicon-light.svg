@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <!-- Círculo con hueco en la parte superior derecha (donde sale la flecha) -->
+  <path d="M 90 35 A 43 43 0 1 1 79 19" stroke="#1B3A2D" stroke-width="6" stroke-linecap="round"/>
+  <!-- Letra A: dos patas y travesaño -->
+  <line x1="22" y1="84" x2="50" y2="22" stroke="#1B3A2D" stroke-width="9" stroke-linecap="round"/>
+  <line x1="78" y1="84" x2="50" y2="22" stroke="#1B3A2D" stroke-width="9" stroke-linecap="round"/>
+  <line x1="33" y1="60" x2="67" y2="60" stroke="#1B3A2D" stroke-width="8"  stroke-linecap="round"/>
+  <!-- Flecha curva de abajo-izquierda a arriba-derecha -->
+  <path d="M 18 82 C 6 104 46 108 83 41" stroke="#1B3A2D" stroke-width="7.5" stroke-linecap="butt"/>
+  <!-- Punta de flecha -->
+  <polygon points="90,35 86,45 80,37" fill="#1B3A2D"/>
+</svg>

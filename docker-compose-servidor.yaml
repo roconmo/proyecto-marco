@@ -1,0 +1,42 @@
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n
+    restart: always
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - N8N_RUNNERS_ENABLED=true
+      - NODE_ENV=production
+      - N8N_SECURE_COOKIE=false
+      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE}
+      - TZ=${GENERIC_TIMEZONE}
+      - N8N_EDITOR_BASE_URL=http://n8n.rosaliacontrerasmoreira.com:5678
+      - WEBHOOK_URL=http://n8n.rosaliacontrerasmoreira.com:5678
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./local-files:/files
+
+  extractor:
+    build: /root/proyecto-marco
+    restart: always
+    expose:
+      - "8501"
+
+  nginx:
+    image: nginx:alpine
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /root/proyecto-marco/nginx.conf:/etc/nginx/conf.d/extractor.conf
+      - /etc/letsencrypt/live/extractor.rosaliacontrerasmoreira.com/fullchain.pem:/etc/nginx/certs/extractor.crt
+      - /etc/letsencrypt/live/extractor.rosaliacontrerasmoreira.com/privkey.pem:/etc/nginx/certs/extractor.key
+    depends_on:
+      - extractor
+
+volumes:
+  n8n_data:

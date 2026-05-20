@@ -1,10 +1,27 @@
+# Entorno virtual
 env_marco/
+.venv/
+
+# Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+
+# Bases de datos
 *.sqlite3
+
+# Logs
 *.log
+
+# Sistema
 .DS_Store
+
+# Editor
 .vscode/
+
+# IA / herramientas
 .claude/
+
+# Otros útiles
+*.env

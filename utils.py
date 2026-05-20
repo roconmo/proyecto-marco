@@ -19,19 +19,19 @@ from parser_jabad import JabadParser
 
 # Mapa de nombre visible (para el selectbox) → clase parser correspondiente
 PARSERS: Dict[str, Type[BaseParser]] = {
-    "MAVY": MavyParser,
-    "Metálicas Julio García": MetalicasJulioGarciaParser,
-    "ONELEC": OnelecParser,
-    "J.ABAD": JabadParser,
+    "Proveedor 1": MavyParser,
+    "Proveedor 2": MetalicasJulioGarciaParser,
+    "Proveedor 3": OnelecParser,
+    "Proveedor 4": JabadParser,
 }
 
 # Texto que debe aparecer en la cabecera del PDF para confirmar el proveedor.
 # Clave: nombre del combo. Valor: fragmento identificativo en el PDF.
 FIRMA_PDF: Dict[str, str] = {
-    "MAVY": "BaseAtCard",  # columna única del sistema de MAVY (el logo es imagen, no texto)
-    "Metálicas Julio García": "METALICAS JULIO GARCIA, S.L.",
-    "ONELEC": "ONELEC SUMINISTROS ELEC. S.L.",
-    "J.ABAD": "J.ABAD COMERCIAL DEL COBRE SAU",
+    "Proveedor 1": "BaseAtCard",
+    "Proveedor 2": "METALICAS JULIO GARCIA, S.L.",
+    "Proveedor 3": "ONELEC SUMINISTROS ELEC. S.L.",
+    "Proveedor 4": "J.ABAD COMERCIAL DEL COBRE SAU",
 }
 
 

@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AlbaFlow — Automatiza albaranes y documentos comerciales</title>
+  <link rel="icon" type="image/svg+xml" href="images/favicon-light.svg" media="(prefers-color-scheme: light)" />
+  <link rel="icon" type="image/png"     href="images/favicon_dark.png"  media="(prefers-color-scheme: dark)" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+    rel="stylesheet"
+  />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #F2F0EB;
+      --green-dark: #1B3A2D;
+      --green-mid:  #2D5A42;
+      --red:        #C0392B;
+      --white:      #FFFFFF;
+      --muted:      #6B7C74;
+      --border:     #DDD9D0;
+      --h-pad:      clamp(48px, 10vw, 200px);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    .af { color: var(--green-dark); }
+    .af .r { color: var(--red); }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--green-dark);
+      overflow-x: hidden;
+    }
+
+    /* ── NAV ─────────────────────────────────────────────────── */
+    nav {
+      position: sticky; top: 0; z-index: 200;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px var(--h-pad);
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo-main {
+      font-size: 22px; font-weight: 900; letter-spacing: -0.5px;
+      line-height: 1;
+    }
+    .logo-main span { color: var(--red); }
+    .logo-sub {
+      font-size: 9px; font-weight: 600; letter-spacing: 2.5px;
+      text-transform: uppercase; color: var(--muted);
+    }
+
+    .nav-links { display: flex; gap: 36px; list-style: none; }
+    .nav-links a {
+      text-decoration: none; color: var(--green-dark);
+      font-size: 15px; font-weight: 500; opacity: .75;
+      transition: opacity .15s;
+    }
+    .nav-links a:hover { opacity: 1; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 11px 22px; border-radius: 8px;
+      font-size: 15px; font-weight: 700; cursor: pointer;
+      text-decoration: none; border: none;
+      transition: transform .15s, box-shadow .15s;
+    }
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.14); }
+
+    .btn-dark  { background: var(--green-dark); color: #fff; }
+    .btn-ghost { color: var(--green-dark); font-size: 15px; font-weight: 600;
+                 text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+
+    /* ── HERO ────────────────────────────────────────────────── */
+    .hero {
+      display: grid; grid-template-columns: 1fr 1fr;
+      min-height: calc(100vh - 65px);
+      padding: 80px var(--h-pad); gap: 48px; align-items: center;
+    }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(27,58,45,.08); border: 1px solid rgba(27,58,45,.18);
+      padding: 6px 16px; border-radius: 100px;
+      font-size: 11px; font-weight: 700; letter-spacing: 1.2px;
+      text-transform: uppercase; color: var(--green-dark);
+      margin-bottom: 28px;
+    }
+    .badge::before {
+      content: ''; width: 7px; height: 7px;
+      background: var(--green-dark); border-radius: 50%;
+      animation: blink 2s infinite;
+    }
+    @keyframes blink {
+      0%,100% { opacity: 1; } 50% { opacity: .25; }
+    }
+
+    .hero h1 {
+      font-size: 60px; font-weight: 900; letter-spacing: -2.5px;
+      line-height: 1.03; margin-bottom: 22px;
+    }
+
+    .hero-desc {
+      font-size: 18px; line-height: 1.65; color: var(--muted);
+      max-width: 460px; margin-bottom: 40px;
+    }
+
+    .hero-actions { display: flex; gap: 24px; align-items: center; margin-bottom: 52px; }
+
+    .hero-stats { display: flex; gap: 44px; }
+    .stat-val  { font-size: 28px; font-weight: 900; color: var(--red); line-height: 1; }
+    .stat-lbl  { font-size: 10px; font-weight: 700; letter-spacing: 1.2px;
+                 text-transform: uppercase; color: var(--muted); margin-top: 3px; }
+
+    /* ── ANIMACIÓN PDF → EXCEL ───────────────────────────────── */
+    .anim-wrap {
+      display: flex; align-items: center; justify-content: center;
+      position: relative; height: 440px;
+    }
+
+    .flow {
+      display: flex; align-items: center;
+      gap: 0; width: 100%; max-width: 500px;
+    }
+
+    /* tarjetas */
+    .doc {
+      background: #fff; border-radius: 16px; padding: 22px 20px;
+      box-shadow: 0 10px 40px rgba(0,0,0,.10);
+      width: 165px; flex-shrink: 0;
+    }
+
+    .doc-badge {
+      width: 44px; height: 52px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 900; color: #fff;
+      margin-bottom: 14px;
+    }
+    .pdf-badge  { background: #E74C3C; }
+    .xls-badge  { background: #1D6F42; }
+
+    .line {
+      height: 8px; border-radius: 4px; background: #EDEAE3;
+      margin-bottom: 7px;
+    }
+
+    /* filas Excel */
+    .xrow {
+      display: flex; gap: 4px; margin-bottom: 5px;
+      opacity: 0;
+    }
+    .xcell { height: 10px; border-radius: 3px; background: #D4EDDA; }
+    .xhead { height: 12px; border-radius: 3px; background: #1D6F42; margin-bottom: 9px; }
+
+    /* flecha central */
+    .arrow-col {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; padding: 0 8px;
+    }
+    .arrow-track {
+      width: 100%; height: 2px;
+      background: linear-gradient(90deg, var(--green-dark), transparent);
+      position: relative; margin-bottom: 14px;
+    }
+    .arrow-track::after {
+      content: ''; position: absolute; right: -7px; top: -5px;
+      width: 13px; height: 13px;
+      border-top: 2px solid var(--green-dark);
+      border-right: 2px solid var(--green-dark);
+      transform: rotate(45deg);
+    }
+    .dots {
+      display: flex; gap: 6px;
+      opacity: 0; animation: fadeIn .4s ease 1.4s forwards;
+    }
+    .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--green-dark);
+    }
+    .dot:nth-child(1) { animation: pulse 1.1s ease 1.6s infinite; }
+    .dot:nth-child(2) { animation: pulse 1.1s ease 1.85s infinite; }
+    .dot:nth-child(3) { animation: pulse 1.1s ease 2.1s infinite; }
+
+    .proc-lbl {
+      font-size: 10px; font-weight: 700; letter-spacing: 1.2px;
+      text-transform: uppercase; color: var(--muted);
+      margin-top: 7px; opacity: 0;
+      animation: fadeIn .4s ease 1.6s forwards;
+    }
+
+    @keyframes fadeIn { to { opacity: 1; } }
+    @keyframes pulse  {
+      0%,100% { transform: scale(1); opacity: .3; }
+      50%      { transform: scale(1.5); opacity: 1; }
+    }
+
+    /* animaciones de entrada de tarjetas */
+    .pdf-card {
+      animation: slideL .8s ease forwards, floatY 3.5s ease-in-out infinite 1s;
+    }
+    .xls-card {
+      opacity: 0;
+      animation: slideR .8s ease 2.4s forwards, floatY 3.5s ease-in-out infinite 3.2s;
+    }
+
+    @keyframes slideL {
+      from { opacity:0; transform:translateX(-28px); }
+      to   { opacity:1; transform:translateX(0); }
+    }
+    @keyframes slideR {
+      from { opacity:0; transform:translateX(28px); }
+      to   { opacity:1; transform:translateX(0); }
+    }
+    @keyframes floatY {
+      0%,100% { transform:translateY(0); }
+      50%     { transform:translateY(-7px); }
+    }
+
+    /* filas con delay */
+    .xrow:nth-child(2) { animation: rowIn .35s ease 3.1s forwards; }
+    .xrow:nth-child(3) { animation: rowIn .35s ease 3.5s forwards; }
+    .xrow:nth-child(4) { animation: rowIn .35s ease 3.9s forwards; }
+    .xrow:nth-child(5) { animation: rowIn .35s ease 4.3s forwards; }
+
+    @keyframes rowIn {
+      from { opacity:0; transform:translateX(10px); }
+      to   { opacity:1; transform:translateX(0); }
+    }
+
+    /* chips flotantes */
+    .chip {
+      position: absolute;
+      background: #fff; border-radius: 12px; padding: 9px 15px;
+      box-shadow: 0 4px 18px rgba(0,0,0,.10);
+      font-size: 12px; font-weight: 700;
+      display: flex; align-items: center; gap: 8px;
+      white-space: nowrap;
+    }
+    .chip-ico {
+      width: 24px; height: 24px; border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+    }
+    .c1 { top: 28px; right: 12px;  animation: chipF 4s ease-in-out infinite; }
+    .c2 { bottom: 68px; left: 4px; animation: chipF 4s ease-in-out infinite 1.8s; }
+    .c3 { bottom: 24px; right: 20px; animation: chipF 4s ease-in-out infinite 3.2s; }
+
+    @keyframes chipF {
+      0%,100% { transform:translateY(0); }
+      50%     { transform:translateY(-9px); }
+    }
+
+    /* ── FEATURES STRIP ──────────────────────────────────────── */
+    .strip {
+      background: var(--green-dark);
+      padding: 48px var(--h-pad);
+      display: grid; grid-template-columns: repeat(3,1fr); gap: 40px;
+    }
+    .strip-item { display: flex; gap: 18px; align-items: flex-start; }
+    .strip-ico {
+      width: 46px; height: 46px; flex-shrink: 0;
+      background: rgba(255,255,255,.1); border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+    }
+    .strip-item h3 { font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+    .strip-item p  { font-size: 14px; color: rgba(255,255,255,.58); line-height: 1.55; }
+
+    /* ── SECCIONES GENÉRICAS ─────────────────────────────────── */
+    .section { padding: 100px var(--h-pad); }
+    .section.alt { background: #fff; }
+
+    .sec-tag {
+      font-size: 11px; font-weight: 700; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 14px;
+    }
+    .sec-title {
+      font-size: 44px; font-weight: 900; letter-spacing: -1.8px;
+      line-height: 1.08; margin-bottom: 16px;
+    }
+    .sec-sub {
+      font-size: 18px; color: var(--muted); line-height: 1.65;
+      max-width: 560px; margin-bottom: 64px;
+    }
+
+    /* ── CÓMO FUNCIONA ───────────────────────────────────────── */
+    .steps { display: grid; grid-template-columns: repeat(3,1fr); gap: 28px; }
+
+    .step {
+      background: #fff; border-radius: 20px; padding: 36px 30px;
+      position: relative; overflow: hidden;
+      transition: transform .2s, box-shadow .2s;
+    }
+    .section.alt .step { background: var(--bg); }
+
+    .step:hover { transform: translateY(-4px); box-shadow: 0 16px 48px rgba(0,0,0,.08); }
+
+    .step-num {
+      position: absolute; top: -12px; right: 18px;
+      font-size: 88px; font-weight: 900;
+      color: rgba(27,58,45,.05); line-height: 1; pointer-events: none;
+    }
+    .step-ico { font-size: 34px; margin-bottom: 20px; }
+    .step h3 { font-size: 20px; font-weight: 800; margin-bottom: 10px; }
+    .step p  { font-size: 15px; color: var(--muted); line-height: 1.6; }
+
+    /* ── PRECIOS ─────────────────────────────────────────────── */
+    .plans { display: grid; grid-template-columns: repeat(3,1fr); gap: 24px; max-width: 1020px; margin: 0 auto; }
+
+    .plan {
+      border: 2px solid var(--border); border-radius: 20px;
+      padding: 44px 36px; position: relative;
+      transition: transform .2s, box-shadow .2s;
+    }
+    .plan:hover { transform: translateY(-4px); box-shadow: 0 16px 48px rgba(0,0,0,.09); }
+
+    .plan.featured {
+      border-color: var(--green-dark);
+      background: var(--green-dark); color: #fff;
+    }
+
+    .plan-ribbon {
+      position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
+      background: var(--red); color: #fff;
+      font-size: 10px; font-weight: 800; letter-spacing: 1.2px;
+      text-transform: uppercase; padding: 4px 18px; border-radius: 100px;
+    }
+
+    .plan-name {
+      font-size: 12px; font-weight: 700; letter-spacing: 1.5px;
+      text-transform: uppercase; opacity: .55; margin-bottom: 10px;
+    }
+    .plan-price {
+      font-size: 56px; font-weight: 900; letter-spacing: -2px; line-height: 1;
+    }
+    .plan-price sup { font-size: 26px; vertical-align: super; }
+    .plan-period { font-size: 14px; opacity: .45; margin-bottom: 36px; margin-top: 4px; }
+
+    .plan-feats { list-style: none; margin-bottom: 36px; display: flex; flex-direction: column; gap: 12px; }
+    .plan-feats li { font-size: 15px; display: flex; gap: 10px; align-items: flex-start; line-height: 1.4; }
+    .plan-feats li::before { content: '✓'; font-weight: 800; color: var(--green-mid); flex-shrink: 0; }
+    .plan.featured .plan-feats li::before { color: #7FD4A8; }
+
+    .plan-btn {
+      display: block; width: 100%; padding: 14px;
+      border-radius: 10px; text-align: center;
+      font-size: 15px; font-weight: 700; cursor: pointer;
+      text-decoration: none;
+      border: 2px solid var(--green-dark);
+      background: transparent; color: var(--green-dark);
+      transition: all .2s;
+    }
+    .plan-btn:hover { background: var(--green-dark); color: #fff; }
+    .plan.featured .plan-btn {
+      border-color: #fff; background: #fff; color: var(--green-dark);
+    }
+    .plan.featured .plan-btn:hover { background: rgba(255,255,255,.88); }
+
+    /* ── CTA FINAL ───────────────────────────────────────────── */
+    .cta-sec {
+      padding: 110px var(--h-pad); text-align: center;
+    }
+    .cta-sec h2 {
+      font-size: 50px; font-weight: 900; letter-spacing: -2px; margin-bottom: 20px;
+    }
+    .cta-sec p {
+      font-size: 18px; color: var(--muted); max-width: 500px;
+      margin: 0 auto 44px; line-height: 1.65;
+    }
+    .cta-btns { display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; }
+
+    .btn-wa {
+      background: #25D366; color: #fff;
+      display: inline-flex; align-items: center; gap: 10px;
+      padding: 14px 28px; border-radius: 10px;
+      font-size: 16px; font-weight: 700; text-decoration: none;
+      transition: transform .15s, box-shadow .15s;
+    }
+    .btn-wa:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(37,211,102,.35); }
+
+    .btn-mail {
+      background: var(--green-dark); color: #fff;
+      display: inline-flex; align-items: center; gap: 10px;
+      padding: 14px 28px; border-radius: 10px;
+      font-size: 16px; font-weight: 700; text-decoration: none;
+      transition: transform .15s, box-shadow .15s;
+    }
+    .btn-mail:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(27,58,45,.3); }
+
+    /* ── MOCKUP HTML ANIMADO ─────────────────────────────────────── */
+    .mk-app { background:#F0EFE9; border-radius:14px; box-shadow:0 20px 60px rgba(0,0,0,.15); overflow:hidden; width:100%; max-width:620px; font-family:'Inter',sans-serif; font-size:11px; color:#222; }
+    .mk-hdr { background:#fff; border-bottom:1px solid #E5E5E5; padding:9px 14px; display:flex; align-items:center; gap:8px; }
+    .mk-hdr-logo { font-size:13px; font-weight:800; color:#1B3A2D; }
+    .mk-hdr-logo span { color:#C0392B; }
+    .mk-hdr-btn { margin-left:auto; background:#1B3A2D; color:#fff; border:none; border-radius:6px; padding:5px 10px; font-size:9px; font-weight:700; cursor:default; }
+    .mk-hdr-user { width:26px; height:26px; border:1.5px solid #DDD; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; }
+    .mk-body { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; padding:10px; }
+    .mk-panel { background:#fff; border-radius:8px; padding:10px; }
+    .mk-ttl { font-size:9.5px; font-weight:700; color:#1B3A2D; margin-bottom:8px; }
+    .mk-file { display:flex; align-items:center; gap:6px; margin-bottom:8px; }
+    .mk-pdf-ico { width:20px; height:24px; background:#E74C3C; border-radius:3px; display:flex; align-items:center; justify-content:center; font-size:6px; font-weight:900; color:#fff; flex-shrink:0; }
+    .mk-fname { font-size:8px; font-weight:600; }
+    .mk-fsub  { font-size:7px; color:#999; }
+    .mk-dochdr { display:flex; justify-content:space-between; align-items:flex-start; padding:6px 0; border-top:1px solid #eee; border-bottom:1px solid #eee; margin-bottom:6px; }
+    .mk-doctype { font-size:10px; font-weight:900; }
+    .mk-docprov { font-size:9px; font-weight:800; text-align:right; }
+    .mk-docaddr { font-size:6.5px; color:#888; text-align:right; line-height:1.5; }
+    .mk-meta { display:grid; grid-template-columns:1fr 1fr; border:1px solid #E0E0E0; border-radius:4px; overflow:hidden; margin-bottom:7px; }
+    .mk-meta-cell { padding:4px 5px; border-right:1px solid #E0E0E0; }
+    .mk-meta-cell:last-child { border-right:none; }
+    .mk-meta-lbl { font-size:6px; font-weight:700; text-transform:uppercase; color:#888; }
+    .mk-meta-val { font-size:8px; font-weight:600; }
+    .mk-tbl { width:100%; border-collapse:collapse; }
+    .mk-tbl th { background:#F5F5F5; padding:3px; font-size:6px; font-weight:700; text-transform:uppercase; color:#666; border:1px solid #E8E8E8; text-align:left; }
+    .mk-tbl td { padding:2.5px 3px; font-size:7px; border:1px solid #EFEFEF; }
+    .mk-tbl .mk-total td { font-weight:700; background:#FAFAFA; }
+    .mk-docfoot { display:flex; justify-content:space-between; margin-top:7px; padding-top:5px; border-top:1px solid #eee; font-size:7px; color:#BBB; }
+    .mk-spin-ctr { display:flex; justify-content:center; margin:4px 0; }
+    .mk-spin-ctr .spinner { width:40px; height:40px; margin-bottom:0; }
+    .mk-proc { text-align:center; font-size:7.5px; color:#888; margin-bottom:8px; }
+    .mk-step { display:flex; align-items:center; gap:5px; margin-bottom:5px; font-size:8px; }
+    .mk-step-ico { width:13px; height:13px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:8px; border:1.5px solid #CCC; color:transparent; transition:background .3s,border-color .3s,color .3s; }
+    .mk-step-ico.done { background:#1D6F42; border-color:#1D6F42; color:#fff; }
+    .mk-xls-ico { width:20px; height:24px; background:#1D6F42; border-radius:3px; display:flex; align-items:center; justify-content:center; font-size:6px; font-weight:900; color:#fff; flex-shrink:0; }
+    .mk-ready { font-size:7px; color:#1D6F42; font-weight:600; opacity:0; transition:opacity .4s ease; }
+    .mk-xtbl { width:100%; border-collapse:collapse; }
+    .mk-xtbl th { background:#1B3A2D; color:#fff; padding:4px 3px; font-size:6.5px; font-weight:600; text-align:left; }
+    .mk-xtbl td { padding:3px; font-size:7px; border-bottom:1px solid #F0F0F0; }
+    .mk-xrow { opacity:0; transition:opacity .4s ease; }
+    .mk-xrow.show { opacity:1; }
+    .mk-xempty td { height:13px; }
+    .mk-xfooter { display:flex; gap:6px; margin-top:8px; }
+    .mk-xbtn { flex:1; padding:5px; border-radius:5px; border:1.5px solid #DDD; background:#fff; font-size:7.5px; font-weight:600; cursor:default; text-align:center; color:#333; }
+    .mk-xbtn.pri { background:#1B3A2D; color:#fff; border-color:#1B3A2D; }
+
+    /* ── DEMO ANIMATION HERO ────────────────────────────────────── */
+    .demo-anim {
+      display: flex; align-items: center; justify-content: center;
+      gap: 16px; width: 100%; max-width: 520px; margin: 0 auto;
+    }
+    .da-card {
+      background: #fff; border-radius: 16px; padding: 22px 18px;
+      box-shadow: 0 10px 40px rgba(0,0,0,.10); width: 160px; flex-shrink: 0;
+      opacity: 0; transform: translateX(-28px);
+      transition: opacity .5s ease, transform .5s ease;
+    }
+    .da-xls { transform: translateX(28px); }
+    .da-card.show { opacity: 1 !important; transform: translateX(0) !important; }
+    .da-badge {
+      width: 42px; height: 48px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 900; color: #fff; margin-bottom: 13px;
+    }
+    .da-line { height: 7px; border-radius: 4px; background: #EDEAE3; margin-bottom: 7px; }
+    .da-xhead { height: 11px; border-radius: 3px; background: #1D6F42; margin-bottom: 9px; }
+    .da-xrow {
+      display: flex; gap: 4px; margin-bottom: 6px;
+      opacity: 0; transform: translateX(10px);
+      transition: opacity .35s ease, transform .35s ease;
+    }
+    .da-xrow.show { opacity: 1; transform: translateX(0); }
+    .da-xcell { height: 9px; border-radius: 3px; background: #D4EDDA; }
+    .da-done {
+      margin-top: 10px; font-size: 11px; font-weight: 700; color: #1D6F42;
+      opacity: 0; transition: opacity .4s ease;
+    }
+    .da-done.show { opacity: 1; }
+    .da-mid {
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      flex-shrink: 0; opacity: 0; transition: opacity .4s ease;
+    }
+    .da-mid.show { opacity: 1; }
+    .da-arrowhead { font-size: 22px; font-weight: 900; color: var(--green-dark); line-height: 1; }
+    .da-lbl {
+      font-size: 9px; font-weight: 700; letter-spacing: 1px;
+      text-transform: uppercase; color: var(--muted);
+    }
+    /* mini spinner (reutiliza keyframes spinFade) */
+    .da-spin { width: 34px; height: 34px; position: relative; }
+    .da-spin span {
+      position: absolute; width: 5px; height: 5px; border-radius: 50%;
+      background: var(--green-mid); transform-origin: 17px 17px;
+      animation: spinFade 1.2s linear infinite;
+    }
+    .da-spin span:nth-child(1)  { transform: rotate(0deg)   translateY(-11px); animation-delay: 0s; }
+    .da-spin span:nth-child(2)  { transform: rotate(30deg)  translateY(-11px); animation-delay: -.1s; }
+    .da-spin span:nth-child(3)  { transform: rotate(60deg)  translateY(-11px); animation-delay: -.2s; }
+    .da-spin span:nth-child(4)  { transform: rotate(90deg)  translateY(-11px); animation-delay: -.3s; }
+    .da-spin span:nth-child(5)  { transform: rotate(120deg) translateY(-11px); animation-delay: -.4s; }
+    .da-spin span:nth-child(6)  { transform: rotate(150deg) translateY(-11px); animation-delay: -.5s; }
+    .da-spin span:nth-child(7)  { transform: rotate(180deg) translateY(-11px); animation-delay: -.6s; }
+    .da-spin span:nth-child(8)  { transform: rotate(210deg) translateY(-11px); animation-delay: -.7s; }
+    .da-spin span:nth-child(9)  { transform: rotate(240deg) translateY(-11px); animation-delay: -.8s; }
+    .da-spin span:nth-child(10) { transform: rotate(270deg) translateY(-11px); animation-delay: -.9s; }
+    .da-spin span:nth-child(11) { transform: rotate(300deg) translateY(-11px); animation-delay: -1s; }
+    .da-spin span:nth-child(12) { transform: rotate(330deg) translateY(-11px); animation-delay: -1.1s; }
+
+    /* ── SPINNER ─────────────────────────────────────────────── */
+    .spinner {
+      width: 44px; height: 44px;
+      position: relative; margin-bottom: 20px;
+    }
+    .spinner span {
+      position: absolute; width: 7px; height: 7px;
+      border-radius: 50%; background: var(--green-mid);
+      transform-origin: 22px 22px;
+      animation: spinFade 1.2s linear infinite;
+    }
+    .spinner span:nth-child(1)  { transform: rotate(0deg)   translateY(-16px); animation-delay: 0s; }
+    .spinner span:nth-child(2)  { transform: rotate(30deg)  translateY(-16px); animation-delay: -.1s; }
+    .spinner span:nth-child(3)  { transform: rotate(60deg)  translateY(-16px); animation-delay: -.2s; }
+    .spinner span:nth-child(4)  { transform: rotate(90deg)  translateY(-16px); animation-delay: -.3s; }
+    .spinner span:nth-child(5)  { transform: rotate(120deg) translateY(-16px); animation-delay: -.4s; }
+    .spinner span:nth-child(6)  { transform: rotate(150deg) translateY(-16px); animation-delay: -.5s; }
+    .spinner span:nth-child(7)  { transform: rotate(180deg) translateY(-16px); animation-delay: -.6s; }
+    .spinner span:nth-child(8)  { transform: rotate(210deg) translateY(-16px); animation-delay: -.7s; }
+    .spinner span:nth-child(9)  { transform: rotate(240deg) translateY(-16px); animation-delay: -.8s; }
+    .spinner span:nth-child(10) { transform: rotate(270deg) translateY(-16px); animation-delay: -.9s; }
+    .spinner span:nth-child(11) { transform: rotate(300deg) translateY(-16px); animation-delay: -1s; }
+    .spinner span:nth-child(12) { transform: rotate(330deg) translateY(-16px); animation-delay: -1.1s; }
+    @keyframes spinFade {
+      0%,39% { opacity: 0; transform-origin: 22px 22px; width: 5px; height: 5px; }
+      40%     { opacity: 1; width: 7px; height: 7px; }
+      100%    { opacity: 0.1; width: 5px; height: 5px; }
+    }
+
+    /* ── CONTACT FORM ────────────────────────────────────────── */
+    .cta-card {
+      background: #fff; border-radius: 20px;
+      padding: 40px 44px; box-shadow: 0 8px 40px rgba(0,0,0,.08);
+      max-width: 560px; margin: 0 auto; text-align: left;
+    }
+    .contact-form { display: flex; flex-direction: column; gap: 16px; }
+    .hp-field { display: none !important; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .form-group label { font-size: 13px; font-weight: 600; color: var(--green-dark); }
+    .form-group input,
+    .form-group textarea {
+      padding: 11px 14px; border: 1.5px solid var(--border); border-radius: 10px;
+      font-size: 14px; font-family: 'Inter', sans-serif;
+      background: #FAF9F6; color: var(--green-dark);
+      transition: border-color .15s, background .15s; resize: vertical;
+    }
+    .form-group input:focus,
+    .form-group textarea:focus { outline: none; border-color: var(--green-dark); background: #fff; }
+    .captcha-row { display: flex; align-items: center; gap: 10px; }
+    .captcha-label { font-size: 13px; font-weight: 600; color: var(--green-dark); white-space: nowrap; }
+    .captcha-input {
+      width: 68px; padding: 9px 12px; border: 1.5px solid var(--border);
+      border-radius: 10px; font-size: 14px; font-family: 'Inter', sans-serif;
+      text-align: center; background: #FAF9F6;
+    }
+    .captcha-input:focus { outline: none; border-color: var(--green-dark); background: #fff; }
+    .captcha-err { font-size: 12px; color: var(--red); font-weight: 600; }
+    .form-submit { width: 100%; justify-content: center; padding: 15px; font-size: 16px; border-radius: 12px; margin-top: 4px; }
+    .form-privacy { font-size: 12px; color: var(--muted); text-align: center; }
+    .form-ok {
+      font-size: 14px; font-weight: 600; color: #1D6F42;
+      padding: 12px; background: #E8F8F0; border-radius: 8px; text-align: center;
+    }
+    /* WhatsApp flotante fijo */
+    .wa-fixed {
+      position: fixed; bottom: 28px; right: 28px; z-index: 500;
+      width: 54px; height: 54px; background: #25D366; color: #fff;
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      text-decoration: none; box-shadow: 0 4px 20px rgba(37,211,102,.45);
+      transition: transform .15s, box-shadow .15s;
+    }
+    .wa-fixed:hover { transform: translateY(-3px) scale(1.07); box-shadow: 0 8px 28px rgba(37,211,102,.55); }
+
+    /* ── FOOTER ──────────────────────────────────────────────── */
+    footer {
+      padding: 28px var(--h-pad);
+      border-top: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    footer p { font-size: 13px; color: var(--muted); }
+    footer a { color: var(--muted); text-decoration: none; }
+    footer a:hover { color: var(--green-dark); }
+  </style>
+</head>
+<body>
+
+<!-- ── NAV ──────────────────────────────────────────────────────── -->
+<nav>
+  <div style="display:flex; align-items:center; gap:14px;">
+    <img src="images/logo.png" alt="AlbaFlow logo" style="height:44px; width:auto;" />
+    <div>
+      <div class="logo-main">Alba<span>Flow</span></div>
+      <div class="logo-sub">by [R]OUS Digital Projects</div>
+    </div>
+  </div>
+  <ul class="nav-links">
+    <li><a href="#como-funciona">Cómo funciona</a></li>
+    <li><a href="#beneficios">Beneficios</a></li>
+    <li><a href="#precios">Precios</a></li>
+  </ul>
+  <a href="https://wa.me/34606361283" target="_blank" class="btn btn-dark">Contactar →</a>
+</nav>
+
+
+<!-- ── HERO ─────────────────────────────────────────────────────── -->
+<section class="hero">
+
+  <!-- Texto izquierda -->
+  <div>
+    <div class="badge">Automatización documental</div>
+    <h1><span class="af">Alba<span class="r">Flow</span></span></h1>
+    <p class="hero-desc">
+      Automatiza albaranes y documentos comerciales. Tu PDF entra,
+      tu Excel sale listo. Sin teclear, sin errores, sin perder tiempo.
+    </p>
+    <div class="hero-actions">
+      <a href="#precios" class="btn btn-dark">Ver planes →</a>
+      <a href="#como-funciona" class="btn-ghost">Cómo funciona ↓</a>
+    </div>
+    <div class="hero-stats">
+      <div>
+        <div class="stat-val">&lt;30s</div>
+        <div class="stat-lbl">Por documento</div>
+      </div>
+      <div>
+        <div class="stat-val">4</div>
+        <div class="stat-lbl">Proveedores</div>
+      </div>
+      <div>
+        <div class="stat-val">↓</div>
+        <div class="stat-lbl">Errores manuales</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mockup animado HTML -->
+  <div style="display:flex; align-items:center; justify-content:center; width:100%;">
+    <div class="mk-app">
+      <div class="mk-hdr">
+        <img src="images/logo.png" alt="" style="height:20px; width:auto;">
+        <span class="mk-hdr-logo">Alba<span>Flow</span></span>
+        <button class="mk-hdr-btn">+ Nuevo procesamiento</button>
+        <div class="mk-hdr-user">👤</div>
+      </div>
+      <div class="mk-body">
+
+        <!-- Panel 1: PDF -->
+        <div class="mk-panel">
+          <div class="mk-ttl">📄 Documento PDF</div>
+          <div class="mk-file">
+            <div class="mk-pdf-ico">PDF</div>
+            <div>
+              <div class="mk-fname">albaran_2025_0312.pdf</div>
+              <div class="mk-fsub">Proveedor 1 · 2 páginas</div>
+            </div>
+          </div>
+          <div class="mk-dochdr">
+            <div>
+              <div class="mk-doctype">ALBARÁN</div>
+              <div style="font-size:7px;color:#888;">Nº 2025/0312</div>
+            </div>
+            <div>
+              <div class="mk-docprov">PROVEEDOR 1</div>
+              <div class="mk-docaddr">C/ Industria 14<br>28001 Madrid</div>
+            </div>
+          </div>
+          <div class="mk-meta">
+            <div class="mk-meta-cell">
+              <div class="mk-meta-lbl">Fecha</div>
+              <div class="mk-meta-val">12/03/2025</div>
+            </div>
+            <div class="mk-meta-cell">
+              <div class="mk-meta-lbl">Ref.</div>
+              <div class="mk-meta-val">2025/0312</div>
+            </div>
+          </div>
+          <table class="mk-tbl">
+            <thead><tr><th>Descripción</th><th>Ud</th><th>Precio</th></tr></thead>
+            <tbody>
+              <tr><td>Cable RZ1-K 2x2.5</td><td>100</td><td>0,42</td></tr>
+              <tr><td>Tubo corrugado M25</td><td>50</td><td>0,18</td></tr>
+              <tr><td>Caja superficie 1E</td><td>20</td><td>1,35</td></tr>
+              <tr class="mk-total"><td>TOTAL</td><td></td><td>63,10</td></tr>
+            </tbody>
+          </table>
+          <div class="mk-docfoot"><span>AlbaFlow</span><span>Pág. 1/1</span></div>
+        </div>
+
+        <!-- Panel 2: Extracción con spinner + pasos -->
+        <div class="mk-panel">
+          <div class="mk-ttl">⚙️ Extracción</div>
+          <div class="mk-spin-ctr">
+            <div class="spinner">
+              <span></span><span></span><span></span><span></span>
+              <span></span><span></span><span></span><span></span>
+              <span></span><span></span><span></span><span></span>
+            </div>
+          </div>
+          <div class="mk-proc">Analizando documento…</div>
+          <div class="mk-step"><div class="mk-step-ico" id="ms1-ico"></div><span>Identificar proveedor</span></div>
+          <div class="mk-step"><div class="mk-step-ico" id="ms2-ico"></div><span>Leer cabecera</span></div>
+          <div class="mk-step"><div class="mk-step-ico" id="ms3-ico"></div><span>Extraer líneas</span></div>
+          <div class="mk-step"><div class="mk-step-ico" id="ms4-ico"></div><span>Calcular importes</span></div>
+          <div class="mk-step"><div class="mk-step-ico" id="ms5-ico"></div><span>Generar Excel</span></div>
+          <div class="mk-ready" id="mk-ready-lbl" style="margin-top:8px;text-align:center;">✓ Listo para descargar</div>
+        </div>
+
+        <!-- Panel 3: Excel con filas animadas -->
+        <div class="mk-panel">
+          <div class="mk-ttl" style="display:flex;align-items:center;gap:5px;">
+            <div class="mk-xls-ico">XLS</div><span>Resultado Excel</span>
+          </div>
+          <table class="mk-xtbl">
+            <thead><tr><th>Descripción</th><th>Cant</th><th>€/ud</th><th>Total</th></tr></thead>
+            <tbody>
+              <tr class="mk-xrow" id="xr1"><td>Cable RZ1-K 2x2.5</td><td>100</td><td>0,42</td><td>42,00</td></tr>
+              <tr class="mk-xrow" id="xr2"><td>Tubo corrugado M25</td><td>50</td><td>0,18</td><td>9,00</td></tr>
+              <tr class="mk-xrow" id="xr3"><td>Caja superficie 1E</td><td>20</td><td>1,35</td><td>27,00</td></tr>
+              <tr class="mk-xempty"><td colspan="4"></td></tr>
+            </tbody>
+          </table>
+          <div class="mk-xfooter">
+            <div class="mk-xbtn">Vista previa</div>
+            <div class="mk-xbtn pri">⬇ Descargar</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</section>
+
+
+<!-- ── FEATURES STRIP ────────────────────────────────────────────── -->
+<div class="strip">
+  <div class="strip-item">
+    <div class="strip-ico">📄</div>
+    <div>
+      <h3>Sube el PDF</h3>
+      <p>Albaranes y facturas de tus proveedores habituales. El sistema los identifica solo.</p>
+    </div>
+  </div>
+  <div class="strip-item">
+    <div class="strip-ico">⚙️</div>
+    <div>
+      <h3>Extracción automática</h3>
+      <p>Descripción, marca, modelo, cantidad, precio, descuento e importe — sin tocar nada.</p>
+    </div>
+  </div>
+  <div class="strip-item">
+    <div class="strip-ico">📊</div>
+    <div>
+      <h3>Excel listo para descargar</h3>
+      <p>Los datos se escriben en tu plantilla existente. Descarga y listo en menos de 30 segundos.</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ── CÓMO FUNCIONA ─────────────────────────────────────────────── -->
+<section class="section" id="como-funciona">
+  <div class="sec-tag">Cómo funciona</div>
+  <h2 class="sec-title">Tres pasos.<br>Eso es todo.</h2>
+  <p class="sec-sub">
+    Sin instalaciones, sin configuraciones complejas. Entra desde el navegador
+    y procesa tu primer documento en menos de un minuto.
+  </p>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-ico">📤</div>
+      <h3>Sube el PDF</h3>
+      <p>Arrastra o selecciona el albarán o factura de tu proveedor. <span class="af">Alba<span class="r">Flow</span></span> detecta automáticamente de quién es.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="spinner">
+        <span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span>
+      </div>
+      <h3>Procesado inteligente</h3>
+      <p>El sistema extrae cada línea del documento: producto, código, cantidad, precio y descuento, sin errores.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-ico">⬇️</div>
+      <h3>Descarga el Excel</h3>
+      <p>Los datos aparecen directamente en tu plantilla Excel. Descarga, abre y sigue trabajando.</p>
+    </div>
+  </div>
+</section>
+
+
+<!-- ── BENEFICIOS ────────────────────────────────────────────────── -->
+<section class="section alt" id="beneficios">
+  <div class="sec-tag">Beneficios</div>
+  <h2 class="sec-title">Horas de trabajo<br>en segundos.</h2>
+  <p class="sec-sub">
+    Si procesas 30 albaranes al mes y cada uno te lleva 10 minutos,
+    <span class="af">Alba<span class="r">Flow</span></span> te devuelve 5 horas cada mes. A coste cero de errores.
+  </p>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">✓</div>
+      <div class="step-ico">🎯</div>
+      <h3>Minimiza errores de transcripción</h3>
+      <p>Evita copiar datos a mano. <span class="af">Alba<span class="r">Flow</span></span> lee el PDF y vuelca los datos con mucha mayor precisión.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">✓</div>
+      <div class="step-ico">🔒</div>
+      <h3>Tu plantilla, intacta</h3>
+      <p>Los datos se escriben en las columnas correctas de tu Excel. El resto de columnas no se tocan.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">✓</div>
+      <div class="step-ico">🚀</div>
+      <h3>Listo en el navegador</h3>
+      <p>Nada que instalar. Accedes desde cualquier ordenador, tablet o móvil con un navegador.</p>
+    </div>
+  </div>
+</section>
+
+
+<!-- ── PRECIOS ───────────────────────────────────────────────────── -->
+<section class="section" id="precios">
+  <div style="text-align:center; margin-bottom:64px;">
+    <div class="sec-tag" style="justify-content:center; display:flex;">Precios</div>
+    <h2 class="sec-title">Sin sorpresas.<br>Sin letra pequeña.</h2>
+    <p class="sec-sub" style="margin:0 auto;">
+      Elige el plan que se ajuste a tu empresa. Cambia de plan cuando quieras.
+    </p>
+  </div>
+
+  <div class="plans">
+
+    <!-- BÁSICO -->
+    <div class="plan">
+      <div class="plan-name">Básico</div>
+      <div class="plan-price"><sup>€</sup>49</div>
+      <div class="plan-period">/ mes · IVA no incluido</div>
+      <ul class="plan-feats">
+        <li>1 proveedor a elegir (de los 4 disponibles)</li>
+        <li>PDFs ilimitados de tus proveedores</li>
+        <li>Exportación a Excel</li>
+        <li>Acceso web desde cualquier dispositivo</li>
+        <li>Soporte por email</li>
+      </ul>
+      <a href="https://wa.me/34606361283?text=Hola%2C%20me%20interesa%20el%20plan%20B%C3%A1sico%20de%20AlbaFlow"
+         target="_blank" class="plan-btn">Empezar →</a>
+    </div>
+
+    <!-- PRO (featured) -->
+    <div class="plan featured">
+      <div class="plan-ribbon">Más popular</div>
+      <div class="plan-name">Pro</div>
+      <div class="plan-price"><sup>€</sup>99</div>
+      <div class="plan-period">/ mes · IVA no incluido</div>
+      <ul class="plan-feats">
+        <li>Los 4 proveedores de la plataforma</li>
+        <li>PDFs ilimitados de tus proveedores</li>
+        <li>Exportación a Excel</li>
+        <li>Verificación automática PDF vs Excel</li>
+        <li>Acceso web desde cualquier dispositivo</li>
+        <li>Soporte prioritario</li>
+      </ul>
+      <a href="https://wa.me/34606361283?text=Hola%2C%20me%20interesa%20el%20plan%20Pro%20de%20AlbaFlow"
+         target="_blank" class="plan-btn">Empezar →</a>
+    </div>
+
+    <!-- EMPRESA -->
+    <div class="plan">
+      <div class="plan-name">Empresa</div>
+      <div class="plan-price" style="font-size:36px; letter-spacing:-1px; margin-top:6px;">Personalizado</div>
+      <div class="plan-period">precio según necesidades</div>
+      <ul class="plan-feats">
+        <li>Todo lo del plan Pro</li>
+        <li>Integración de nuevos proveedores</li>
+        <li>Adaptación a tu plantilla Excel</li>
+        <li>Instalación en tu propio servidor</li>
+        <li>Soporte directo y formación</li>
+        <li>Precio cerrado según necesidades</li>
+      </ul>
+      <a href="https://wa.me/34606361283?text=Hola%2C%20me%20interesa%20el%20plan%20Empresa%20de%20AlbaFlow"
+         target="_blank" class="plan-btn">Pedir presupuesto →</a>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ── CTA FINAL ─────────────────────────────────────────────────── -->
+<section class="cta-sec">
+  <h2>¿Hablamos?</h2>
+  <p>
+    Cuéntanos cómo trabajas y te mostramos <span class="af">Alba<span class="r">Flow</span></span> con tus propios documentos.
+    Sin compromiso.
+  </p>
+
+  <div class="cta-card">
+    <form id="contact-form" class="contact-form" novalidate>
+      <input type="text" name="_gotcha" class="hp-field" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="c-name">Nombre <span style="color:var(--red)">*</span></label>
+          <input type="text" id="c-name" placeholder="Tu nombre" required>
+        </div>
+        <div class="form-group">
+          <label for="c-company">Empresa</label>
+          <input type="text" id="c-company" placeholder="Tu empresa">
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="c-email">Email <span style="color:var(--red)">*</span></label>
+        <input type="email" id="c-email" placeholder="tu@email.com" required>
+      </div>
+      <div class="form-group">
+        <label for="c-msg">¿Qué necesitas?</label>
+        <textarea id="c-msg" rows="3" placeholder="Cuéntanos qué proveedores usas y qué necesitas..."></textarea>
+      </div>
+      <div class="captcha-row">
+        <span id="captcha-q" class="captcha-label"></span>
+        <input type="number" id="captcha-input" class="captcha-input" placeholder="?" min="0">
+        <span id="captcha-err" class="captcha-err" style="display:none">Respuesta incorrecta</span>
+      </div>
+      <button type="submit" class="btn btn-dark form-submit">Solicitar demo gratuita →</button>
+      <p class="form-privacy">Tus datos se usan únicamente para gestionar tu solicitud.</p>
+      <div id="form-ok" class="form-ok" style="display:none">✓ Abriendo tu cliente de correo con el mensaje listo.</div>
+    </form>
+  </div>
+</section>
+
+
+<!-- ── WHATSAPP FLOTANTE ──────────────────────────────────────────── -->
+<a href="https://wa.me/34606361283?text=Hola%2C%20quiero%20ver%20una%20demo%20de%20AlbaFlow"
+   target="_blank" class="wa-fixed" title="Contactar por WhatsApp">
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+  </svg>
+</a>
+
+<!-- ── FOOTER ────────────────────────────────────────────────────── -->
+<footer>
+  <div>
+    <div class="logo-main" style="font-size:18px"><span>[R]</span>OUS</div>
+    <div class="logo-sub">Digital Projects</div>
+  </div>
+  <p>© <span id="footer-year"></span> <span class="af">Alba<span class="r">Flow</span></span> · <a href="mailto:info@rosaliacontrerasmoreira.com">info@rosaliacontrerasmoreira.com</a></p>
+  <p style="font-size:13px; color:var(--muted);">Hecho con ♥ en Madrid</p>
+</footer>
+
+<script>
+  document.getElementById('footer-year').textContent = new Date().getFullYear();
+
+  // ── Mockup animado: pasos → filas Excel → listo → bucle ────────
+  function runMockupAnim() {
+    const steps   = ['ms1-ico','ms2-ico','ms3-ico','ms4-ico','ms5-ico'].map(id => document.getElementById(id));
+    const rows    = ['xr1','xr2','xr3'].map(id => document.getElementById(id));
+    const readyLbl = document.getElementById('mk-ready-lbl');
+    if (!steps[0]) return;
+
+    // Reset
+    steps.forEach(el => { el.classList.remove('done'); el.textContent = ''; });
+    rows.forEach(el => el.classList.remove('show'));
+    if (readyLbl) readyLbl.style.opacity = '0';
+
+    // Pasos aparecen uno a uno (checkmark verde)
+    steps.forEach((el, i) => {
+      setTimeout(() => { el.classList.add('done'); el.textContent = '✓'; }, 600 + i * 650);
+    });
+
+    // Filas Excel aparecen tras los pasos
+    const afterSteps = 600 + steps.length * 650 + 200;
+    rows.forEach((el, i) => setTimeout(() => el.classList.add('show'), afterSteps + i * 420));
+
+    // "Listo" aparece al final
+    const done = afterSteps + rows.length * 420 + 300;
+    setTimeout(() => { if (readyLbl) readyLbl.style.opacity = '1'; }, done);
+
+    // Reinicia el bucle
+    setTimeout(runMockupAnim, done + 2800);
+  }
+  runMockupAnim();
+
+  // Captcha: genera pregunta matemática aleatoria
+  let captchaAnswer = 0;
+  function initCaptcha() {
+    const a = Math.floor(Math.random() * 9) + 1;
+    const b = Math.floor(Math.random() * 9) + 1;
+    captchaAnswer = a + b;
+    document.getElementById('captcha-q').textContent = a + ' + ' + b + ' = ';
+  }
+  initCaptcha();
+
+  document.getElementById('contact-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    // Honeypot: si tiene valor, es un bot → ignorar silenciosamente
+    if (document.querySelector('.hp-field').value !== '') return;
+
+    // Validar captcha
+    const userVal = parseInt(document.getElementById('captcha-input').value, 10);
+    const errEl   = document.getElementById('captcha-err');
+    if (isNaN(userVal) || userVal !== captchaAnswer) {
+      errEl.style.display = 'inline';
+      initCaptcha();
+      document.getElementById('captcha-input').value = '';
+      return;
+    }
+    errEl.style.display = 'none';
+
+    // Validar campos obligatorios
+    const name  = document.getElementById('c-name').value.trim();
+    const email = document.getElementById('c-email').value.trim();
+    const msg   = document.getElementById('c-msg').value.trim();
+    if (!name || !email || !msg) return;
+
+    // Abrir cliente de correo con los datos pre-rellenados
+    const subject = encodeURIComponent('Consulta AlbaFlow — ' + name);
+    const body    = encodeURIComponent('Nombre: ' + name + '\nEmail: ' + email + '\n\n' + msg);
+    window.location.href = 'mailto:info@rosaliacontrerasmoreira.com?subject=' + subject + '&body=' + body;
+
+    document.getElementById('form-ok').style.display = 'block';
+    this.reset();
+    initCaptcha();
+  });
+</script>
+</body>
+</html>
