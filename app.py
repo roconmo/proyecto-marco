@@ -298,6 +298,10 @@ if procesar:
             nombre_excel_salida = excel_file.name
 
             if filas:
+                # DEBUG TEMPORAL — mostrar primera fila del parser
+                with st.expander("DEBUG — primera fila del parser", expanded=True):
+                    st.write(filas[0])
+
                 excel_bytes_resultado, columnas_faltantes = exportar_a_excel(
                     filas=filas,
                     excel_bytes=excel_bytes_origen,
