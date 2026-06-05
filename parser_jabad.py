@@ -441,8 +441,7 @@ class JabadParser(BaseParser):
         descripcion = re.sub(r"\s+", " ", product.get("descripcion", "")).strip()
         precio = product.get("precio", "")
         importe = product.get("importe", "")
-        return {
-            "Producto": "Producto",
+        return self._añadir_campos_globales({
             "Descripción": descripcion,
             "Marca": product.get("marca", ""),
             "Modelo": product.get("codigo", ""),
@@ -456,7 +455,7 @@ class JabadParser(BaseParser):
             "Importe": importe,
             "Importe línea excl. IVA": importe,
             "_advertencia": product.get("advertencia", False),
-        }
+        })
 
     # ---------------------------------------------------------------------------
     # Utilidades

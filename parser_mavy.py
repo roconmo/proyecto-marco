@@ -380,8 +380,7 @@ class MavyParser(BaseParser):
         importe_f = _a_float(importe)
         dto_val   = _a_float(dto) if dto else ""
 
-        return {
-            "Producto":                "Producto",
+        return self._añadir_campos_globales({
             "Descripción":             descripcion,
             "Marca":                   "MAVY",
             "Modelo":                  codigo.strip(),
@@ -394,7 +393,7 @@ class MavyParser(BaseParser):
             "Margen":                  "",
             "Importe":                 importe_f,
             "Importe línea excl. IVA": importe_f,
-        }
+        })
 
 
 # ===========================================================================

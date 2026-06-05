@@ -58,6 +58,13 @@ class BaseParser(ABC):
         """
         pass
 
+    def _añadir_campos_globales(self, fila: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Añade campos calculados globalmente a todas las filas, independientemente
+        del proveedor. Se llama desde _to_base_row de cada parser.
+        """
+        return {"Producto": "Producto", **fila}
+
     def to_dataframe(self, filas: List[Dict[str, Any]]) -> pd.DataFrame:
         """
         Convierte la lista de filas en un DataFrame de pandas.

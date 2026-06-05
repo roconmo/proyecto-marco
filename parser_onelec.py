@@ -627,8 +627,7 @@ class OnelecParser(BaseParser):
         )
         precio = product.get("precio", "")
         importe = product.get("importe", "")
-        return {
-            "Producto": "Producto",
+        return self._añadir_campos_globales({
             "Descripción": descripcion,
             "Marca": product.get("marca", ""),
             "Modelo": product.get("codigo", ""),
@@ -642,7 +641,7 @@ class OnelecParser(BaseParser):
             "Importe": importe,
             "Importe línea excl. IVA": importe,
             "_advertencia": product.get("advertencia", False),
-        }
+        })
 
     # ------------------------------------------------------------------
     # Utilidades de texto
