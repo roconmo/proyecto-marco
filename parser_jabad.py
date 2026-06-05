@@ -442,6 +442,7 @@ class JabadParser(BaseParser):
         precio = product.get("precio", "")
         importe = product.get("importe", "")
         return {
+            "Producto": "Producto",
             "Descripción": descripcion,
             "Marca": product.get("marca", ""),
             "Modelo": product.get("codigo", ""),

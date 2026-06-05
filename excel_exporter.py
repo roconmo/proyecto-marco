@@ -28,6 +28,7 @@ HOJA_DESTINO = "Hoja1"
 
 # Columnas que provienen directamente del parser
 COLUMNAS_PARSER: List[str] = [
+    "Producto",
     "Descripción",
     "Marca",
     "Modelo",

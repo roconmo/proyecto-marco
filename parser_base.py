@@ -24,6 +24,7 @@ class BaseParser(ABC):
 
     # Columnas que debe tener el output — estructura fija para todos los proveedores
     COLUMNAS: List[str] = [
+        "Producto",
         "Descripción",
         "Marca",
         "Modelo",

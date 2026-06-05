@@ -737,6 +737,7 @@ class MetalicasJulioGarciaParser(BaseParser):
         Nota: "Cód. concepto" y "Nº" los calcula excel_exporter.py.
         """
         return {
+            "Producto":                "Producto",
             "Descripción":             descripcion,
             "Marca":                   "METÁLICAS JULIO GARCÍA",
             "Modelo":                  codigo.strip(),

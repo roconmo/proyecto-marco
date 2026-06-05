@@ -381,6 +381,7 @@ class MavyParser(BaseParser):
         dto_val   = _a_float(dto) if dto else ""
 
         return {
+            "Producto":                "Producto",
             "Descripción":             descripcion,
             "Marca":                   "MAVY",
             "Modelo":                  codigo.strip(),
