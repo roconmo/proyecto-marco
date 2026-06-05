@@ -50,6 +50,14 @@ COLUMNAS_LOOKUP: List[str] = ["Cód. concepto", "Nº"]
 # Todas las columnas que el exportador puede necesitar escribir
 COLUMNAS_OBJETIVO: List[str] = COLUMNAS_PARSER + COLUMNAS_LOOKUP
 
+# Valores fijos de negocio que el exportador escribe siempre,
+# independientemente de lo que devuelva el parser.
+# Esto garantiza consistencia aunque una versión antigua del parser
+# no incluya la clave en el dict.
+VALORES_FIJOS: Dict[str, Any] = {
+    "Tipo": "Producto",
+}
+
 # Relleno verde claro para filas nuevas
 _FILL_VERDE = PatternFill(
     start_color="C6EFCE",
@@ -171,7 +179,11 @@ def exportar_a_excel(
 
         # — Escribir columnas del parser —
         for nombre_col, col_idx in mapa_parser.items():
-            valor = fila_dict.get(nombre_col, None)
+            # VALORES_FIJOS tienen prioridad sobre lo que devuelva el parser
+            if nombre_col in VALORES_FIJOS:
+                valor = VALORES_FIJOS[nombre_col]
+            else:
+                valor = fila_dict.get(nombre_col, None)
             # Convertir "" a None para no escribir cadenas vacías en la celda
             ws.cell(
                 row=fila_destino,
