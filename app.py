@@ -214,6 +214,10 @@ if st.session_state.resultado is not None:
         if item.get("advertencias"):
             st.warning("Advertencias del parser:\n" + formatear_lista_errores(item["advertencias"]))
 
+    if res.get("debug_primera_fila") is not None:
+        with st.expander("DEBUG — primera fila del parser (persistente)", expanded=True):
+            st.write(res["debug_primera_fila"])
+
     if res.get("df_preview") is not None:
         st.subheader("Vista previa de los datos extraídos")
         st.dataframe(res["df_preview"], use_container_width=True)
@@ -329,6 +333,7 @@ if procesar:
                 "df_preview": parser.to_dataframe(filas) if filas else None,
                 "discrepancias": discrepancias,
                 "resumen_verificacion": resumen_verificacion,
+                "debug_primera_fila": filas[0] if filas else None,
             }
             st.rerun()
 
