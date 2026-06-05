@@ -737,6 +737,7 @@ class MetalicasJulioGarciaParser(BaseParser):
         Nota: "Cód. concepto" y "Nº" los calcula excel_exporter.py.
         """
         return self._añadir_campos_globales({
+            "Tipo":                    "Producto",
             "Descripción":             descripcion,
             "Marca":                   "METÁLICAS JULIO GARCÍA",
             "Modelo":                  codigo.strip(),
