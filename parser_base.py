@@ -24,7 +24,7 @@ class BaseParser(ABC):
 
     # Columnas que debe tener el output — estructura fija para todos los proveedores
     COLUMNAS: List[str] = [
-        "Producto",
+        "Tipo",
         "Descripción",
         "Marca",
         "Modelo",
@@ -63,7 +63,7 @@ class BaseParser(ABC):
         Añade campos calculados globalmente a todas las filas, independientemente
         del proveedor. Se llama desde _to_base_row de cada parser.
         """
-        return {"Producto": "Producto", **fila}
+        return {"Tipo": "Producto", **fila}
 
     def to_dataframe(self, filas: List[Dict[str, Any]]) -> pd.DataFrame:
         """
