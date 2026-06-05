@@ -18,4 +18,5 @@ jobs:
           script: |
             cd /root/proyecto-marco
             git pull
-            docker compose -f /root/proyecto-marco/docker-compose-servidor.yaml up -d --build extractor
+            docker compose -f /root/proyecto-marco/docker-compose-servidor.yaml build --no-cache extractor
+            docker compose -f /root/proyecto-marco/docker-compose-servidor.yaml up -d extractor
