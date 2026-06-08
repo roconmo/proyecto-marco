@@ -18,5 +18,6 @@ jobs:
           script: |
             cd /root/proyecto-marco
             git pull
-            docker compose -f /root/proyecto-marco/docker-compose-servidor.yaml build --no-cache extractor
-            docker compose -f /root/proyecto-marco/docker-compose-servidor.yaml up -d --force-recreate extractor
+            docker compose -p proyecto-marco -f /root/proyecto-marco/docker-compose-servidor.yaml build --no-cache extractor
+            docker compose -p proyecto-marco -f /root/proyecto-marco/docker-compose-servidor.yaml up -d --force-recreate extractor
+            docker image prune -f
