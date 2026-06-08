@@ -16,11 +16,9 @@ import streamlit.components.v1 as components
 
 from utils import (
     get_parser,
-    get_proveedores_disponibles,
     nombre_clase_parser,
     formatear_lista_errores,
     extract_text,
-    confirmar_proveedor_en_pdf,
     detectar_proveedor,
 )
 from excel_exporter import exportar_a_excel, inspeccionar_cabecera, HOJA_DESTINO
@@ -62,7 +60,6 @@ if st.session_state.scroll_top:
     components.html("<script>window.parent.scrollTo({top: 0, behavior: 'instant'});</script>", height=0)
 
 st.title("Extractor de PDFs Comerciales")
-st.caption("v2026.06.08-b")
 st.markdown(
     "Sube un PDF de proveedor, selecciona el proveedor y el Excel destino. "
     f"La aplicación escribirá los datos extraídos en la hoja **{HOJA_DESTINO}** "
@@ -142,29 +139,8 @@ if excel_file is not None:
 
 
 # ---------------------------------------------------------------------------
-# Zona de debug (expandible, opcional)
-# ---------------------------------------------------------------------------
-
-with st.expander("Información de debug — configuración actual", expanded=False):
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown("**PDF subido:**")
-        st.code(pdf_file.name if pdf_file else "— ninguno —")
-        st.markdown("**Proveedor detectado:**")
-        st.code(proveedor_seleccionado or "— no detectado —")
-    with col2:
-        st.markdown("**Parser que se usará:**")
-        st.code(nombre_clase_parser(proveedor_seleccionado) if proveedor_seleccionado else "— ninguno —")
-        st.markdown("**Excel destino:**")
-        st.code(excel_file.name if excel_file else "— ninguno —")
-        st.markdown("**Hoja destino:**")
-        st.code(HOJA_DESTINO)
-
-
-# ---------------------------------------------------------------------------
 # Sección 4 — Botón de procesamiento
 # ---------------------------------------------------------------------------
-
 
 st.divider()
 
@@ -214,10 +190,6 @@ if st.session_state.resultado is not None:
         item = res["resumen_pdfs"][0]
         if item.get("advertencias"):
             st.warning("Advertencias del parser:\n" + formatear_lista_errores(item["advertencias"]))
-
-    if res.get("debug_primera_fila") is not None:
-        with st.expander("DEBUG — primera fila del parser (persistente)", expanded=True):
-            st.write(res["debug_primera_fila"])
 
     if res.get("df_preview") is not None:
         st.subheader("Vista previa de los datos extraídos")
@@ -276,19 +248,10 @@ if procesar:
             st.error(msg)
         st.stop()
 
-    # --- Procesamiento de todos los PDFs ---
+    # --- Procesamiento ---
     with st.spinner(f"Procesando PDF con el parser de {proveedor_seleccionado}..."):
         try:
             pdf_bytes = pdf_file.read()
-
-            texto_extraido = extract_text(pdf_bytes)
-            with st.expander("DEBUG TEXT — texto extraído del PDF", expanded=False):
-                st.text_area(
-                    label=f"Texto completo extraído por pdfplumber ({len(texto_extraido)} caracteres)",
-                    value=texto_extraido if texto_extraido else "(sin texto extraído)",
-                    height=500,
-                    disabled=True,
-                )
 
             parser = get_parser(proveedor_seleccionado)
             filas = parser.parse(pdf_bytes)
@@ -303,10 +266,6 @@ if procesar:
             nombre_excel_salida = excel_file.name
 
             if filas:
-                # DEBUG TEMPORAL — mostrar primera fila del parser
-                with st.expander("DEBUG — primera fila del parser", expanded=True):
-                    st.write(filas[0])
-
                 excel_bytes_resultado, columnas_faltantes = exportar_a_excel(
                     filas=filas,
                     excel_bytes=excel_bytes_origen,
@@ -334,7 +293,6 @@ if procesar:
                 "df_preview": parser.to_dataframe(filas) if filas else None,
                 "discrepancias": discrepancias,
                 "resumen_verificacion": resumen_verificacion,
-                "debug_primera_fila": filas[0] if filas else None,
             }
             st.rerun()
 
