@@ -62,6 +62,7 @@ if st.session_state.scroll_top:
     components.html("<script>window.parent.scrollTo({top: 0, behavior: 'instant'});</script>", height=0)
 
 st.title("Extractor de PDFs Comerciales")
+st.caption("v2026.06.08-b")
 st.markdown(
     "Sube un PDF de proveedor, selecciona el proveedor y el Excel destino. "
     f"La aplicación escribirá los datos extraídos en la hoja **{HOJA_DESTINO}** "

@@ -208,6 +208,12 @@ def exportar_a_excel(
                     cell.fill = _FILL_ROJO
                     cell.font = _FONT_ROJO_NEGRITA
 
+        # — GARANTÍA FINAL: escribir "Tipo"="Producto" siempre, como último paso —
+        # Este write va después de todo lo demás para que nada pueda sobrescribirlo.
+        col_idx_tipo = mapa_cabecera.get("Tipo")
+        if col_idx_tipo:
+            ws.cell(row=fila_destino, column=col_idx_tipo, value="Producto")
+
     # -----------------------------------------------------------------------
     # 7. Serializar y devolver
     # -----------------------------------------------------------------------
